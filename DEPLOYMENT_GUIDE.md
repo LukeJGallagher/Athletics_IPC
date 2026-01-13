@@ -158,14 +158,59 @@ The workflow file is already created at `.github/workflows/daily_scraper.yml`.
 - **GitHub Actions**: 2,000 min/month free (weekly uses only ~60 min/month)
 
 ### Test the Workflow:
-1. Go to your GitHub repository
-2. Click **Actions** tab
-3. Click **Daily Para Athletics Data Scraper**
-4. Click **Run workflow**
-5. Select `all` to test both scrapers
-6. Click **Run workflow**
 
-Watch the logs to ensure it works!
+#### Step-by-Step Manual Test
+
+1. **Go to GitHub Actions**
+   - Navigate to: https://github.com/LukeJGallagher/Athleticsipc_Tilastoptja/actions
+
+2. **Select the Workflow**
+   - Click **"Weekly Para Athletics Data Scraper"** in the left sidebar
+
+3. **Run the Workflow**
+   - Click the **"Run workflow"** dropdown button (right side, blue button)
+   - Select **Branch**: `main`
+   - Select **scraper_type**:
+     - `tilastopaja` - Test just the database updater (fastest)
+     - `rankings` - Test rankings scraper only
+     - `records` - Test records scraper only
+     - `all` - Test everything (takes longest)
+   - Click the green **"Run workflow"** button
+
+4. **Monitor Progress**
+   - Refresh the page to see the new run appear
+   - Click on the running workflow to see live logs
+   - Each step shows green ✓ (success) or red ✗ (failure)
+
+5. **Check Results**
+   - **Success**: All steps show green checkmarks
+   - **Logs**: Click any step to see detailed output
+   - **Artifacts**: Download `scraper-logs-xxxxx` for full log files
+
+#### Test Locally First (Recommended)
+
+Before running the cloud workflow, test locally:
+
+```bash
+# Check for updates (doesn't download)
+python tilastopaja_updater.py --check
+
+# Compare local vs remote database
+python tilastopaja_updater.py --compare
+
+# Force update (downloads and merges)
+python tilastopaja_updater.py --force
+```
+
+#### Verify Azure Connection
+
+After the workflow runs, verify data in Azure:
+
+1. Go to **Azure Portal** → Your database
+2. Click **Query editor** in left menu
+3. Login with your credentials
+4. Run: `SELECT COUNT(*) FROM Rankings;`
+5. Verify row count matches expected data
 
 ---
 
@@ -241,21 +286,40 @@ Project/
 
 ## Troubleshooting
 
+### Workflow Won't Start
+- **"Resource not accessible"**: Check you have write access to the repository
+- **No "Run workflow" button**: Workflow file may have syntax errors - check Actions tab for errors
+- **Workflow not visible**: Ensure `.github/workflows/daily_scraper.yml` is committed to `main` branch
+
+### "Secret not found" Error
+- Go to **Settings** → **Secrets and variables** → **Actions**
+- Verify secret is named exactly `SQL_CONNECTION_STRING`
+- Re-add the secret if necessary
+
 ### "Connection refused" Error
 - Check Azure firewall settings
-- Ensure "Allow Azure services" is enabled
+- Ensure "Allow Azure services" is enabled in Azure Portal
+- Verify the server name in connection string is correct
 
 ### "Login failed" Error
-- Verify connection string password
-- Check admin username
+- Verify connection string password is correct (no `{your_password}` placeholder)
+- Check admin username matches what you created
+- Ensure password doesn't contain special characters that need escaping
 
 ### "Module not found" Error
 - Requirements not installed
 - Check GitHub Actions logs for pip install output
+- Verify `requirements.txt` is committed to the repository
 
 ### Scraper Timeout
 - IPC website may be slow
 - Increase timeout in cloud_scraper.py
+- Try running `tilastopaja` only first (fastest option)
+
+### Workflow Succeeds but No Data
+- Check if Azure schema was created (Step 1.5)
+- Verify tables exist: `SELECT * FROM INFORMATION_SCHEMA.TABLES;`
+- Check workflow logs for "skipping Azure upload" messages
 
 ---
 
