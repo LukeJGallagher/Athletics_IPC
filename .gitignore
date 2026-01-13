@@ -1,0 +1,56 @@
+# Environment and secrets
+.env
+*.env
+.env.local
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.claude/
+
+# Data files (too large for git)
+data/
+downloads/
+Old/
+comprehensive_analysis/
+pre_competition_reports/
+analysis_reports/
+agents/
+
+# Output files
+output/
+logs/
+*.log
+*.xlsx
+
+# Database files
+*.db
+*.sqlite
+
+# OS files
+.DS_Store
+Thumbs.db
+nul
+
+# Temporary files
+*.tmp
+*.temp
+tmpclaude-*
+
+# Generated reports
+*.png
+*.pdf
+
+# XML files
+*.xml

@@ -1,0 +1,79 @@
+name: Weekly Para Athletics Data Scraper
+
+on:
+  schedule:
+    # Run every Sunday at 2 AM UTC (6 AM Saudi time)
+    - cron: '0 2 * * 0'
+  workflow_dispatch:
+    # Allows manual trigger from GitHub Actions tab
+    inputs:
+      scraper_type:
+        description: 'Which scraper to run'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - rankings
+          - records
+          - tilastopaja
+
+jobs:
+  scrape-and-upload:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y unixodbc-dev
+
+      - name: Install ODBC Driver for SQL Server
+        run: |
+          curl https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add -
+          curl https://packages.microsoft.com/config/ubuntu/22.04/prod.list | sudo tee /etc/apt/sources.list.d/mssql-release.list
+          sudo apt-get update
+          sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Install Playwright browsers
+        run: playwright install chromium
+
+      - name: Run Rankings Scraper
+        if: ${{ github.event.inputs.scraper_type == 'all' || github.event.inputs.scraper_type == 'rankings' || github.event_name == 'schedule' }}
+        env:
+          AZURE_SQL_CONN: ${{ secrets.SQL_CONNECTION_STRING }}
+          SCRAPER_MODE: cloud
+        run: python cloud_scraper.py --type rankings
+
+      - name: Run Records Scraper
+        if: ${{ github.event.inputs.scraper_type == 'all' || github.event.inputs.scraper_type == 'records' || github.event_name == 'schedule' }}
+        env:
+          AZURE_SQL_CONN: ${{ secrets.SQL_CONNECTION_STRING }}
+          SCRAPER_MODE: cloud
+        run: python cloud_scraper.py --type records
+
+      - name: Update Tilastopaja Database
+        if: ${{ github.event.inputs.scraper_type == 'all' || github.event.inputs.scraper_type == 'tilastopaja' || github.event_name == 'schedule' }}
+        env:
+          AZURE_SQL_CONN: ${{ secrets.SQL_CONNECTION_STRING }}
+          SCRAPER_MODE: cloud
+        run: python tilastopaja_updater.py --check-and-update
+
+      - name: Upload logs as artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scraper-logs-${{ github.run_id }}
+          path: logs/
+          retention-days: 7

@@ -1,0 +1,29 @@
+# Para Athletics Data Pipeline - Requirements
+# For GitHub Actions deployment to Azure SQL
+
+# Core data processing
+pandas>=2.0.0
+numpy>=1.24.0
+
+# Web scraping
+playwright>=1.40.0
+requests>=2.31.0
+beautifulsoup4>=4.12.0
+
+# Database connectivity
+pyodbc>=5.0.0
+sqlalchemy>=2.0.0
+
+# PDF processing (optional - for Chandra OCR)
+# chandra-ocr>=0.1.8
+
+# Data export
+openpyxl>=3.1.0
+
+# Utilities
+python-dotenv>=1.0.0
+fuzzywuzzy>=0.18.0
+
+# Dashboard (local only - not needed for scraper)
+# streamlit>=1.28.0
+# plotly>=5.18.0
