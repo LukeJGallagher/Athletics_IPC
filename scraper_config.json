@@ -1,5 +1,5 @@
 {
-  "openrouter_api_key": "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",
+  "openrouter_api_key": "USE_ENV_VARIABLE",
   "existing_csv_path": null,
   "output_directory": "./output",
   "max_urls_to_process": 10,
