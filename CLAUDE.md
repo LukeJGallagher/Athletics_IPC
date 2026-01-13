@@ -68,6 +68,12 @@ GitHub Actions (weekly Sunday 2AM UTC)
          └──> tilastopaja_updater.py ──> Tilastopaja CSV ──> Azure SQL
 ```
 
+### Azure SQL Database (Verified Working)
+- **Server**: `REDACTED_SERVER`
+- **Database**: `REDACTED_DB`
+- **Tables**: Rankings, Records, Results, Athletes, ScrapeLog
+- **Admin**: `REDACTED_USER`
+
 ### GitHub Secrets Required
 - `SQL_CONNECTION_STRING`: Azure SQL ODBC connection string
 
