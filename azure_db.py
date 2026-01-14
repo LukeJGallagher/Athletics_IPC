@@ -9,6 +9,7 @@ seamlessly in both local development and Streamlit Cloud deployment environments
 import os
 import sqlite3
 import pandas as pd
+import time
 from typing import Optional
 from contextlib import contextmanager
 
@@ -94,7 +95,10 @@ def get_connection_mode() -> str:
 @contextmanager
 def get_azure_connection():
     """
-    Context manager for Azure SQL connections.
+    Context manager for Azure SQL connections with auto-wake retry.
+
+    Handles Azure SQL Serverless auto-pause by retrying with exponential backoff.
+    If database is paused (error 40613), waits and retries up to 3 times.
 
     Usage:
         with get_azure_connection() as conn:
@@ -104,7 +108,7 @@ def get_azure_connection():
     Raises:
         ImportError: If pyodbc is not installed
         ValueError: If AZURE_SQL_CONN is not configured
-        pyodbc.Error: If connection fails
+        pyodbc.Error: If connection fails after all retries
     """
     if not PYODBC_AVAILABLE:
         raise ImportError("pyodbc is required for Azure SQL connections")
@@ -114,12 +118,30 @@ def get_azure_connection():
         raise ValueError("AZURE_SQL_CONN not found in environment or Streamlit secrets")
 
     conn = None
-    try:
-        conn = pyodbc.connect(conn_str)
-        yield conn
-    finally:
-        if conn:
-            conn.close()
+    max_retries = 3
+    retry_delays = [10, 20, 30]  # Exponential backoff: 10s, 20s, 30s
+
+    for attempt in range(max_retries):
+        try:
+            conn = pyodbc.connect(conn_str)
+            yield conn
+            return  # Success, exit the function
+        except pyodbc.Error as e:
+            # Check if error is due to paused database (error code 40613)
+            error_msg = str(e)
+            is_paused = '40613' in error_msg or 'not currently available' in error_msg.lower()
+
+            if is_paused and attempt < max_retries - 1:
+                # Database is paused, wait and retry
+                delay = retry_delays[attempt]
+                print(f"Azure SQL database paused. Retrying in {delay}s... (attempt {attempt + 1}/{max_retries})")
+                time.sleep(delay)
+            else:
+                # Not a pause error, or final retry failed
+                raise
+        finally:
+            if conn:
+                conn.close()
 
 
 @contextmanager
