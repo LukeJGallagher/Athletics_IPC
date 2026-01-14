@@ -5,15 +5,12 @@ Connects to Azure SQL and displays real-time data
 
 import streamlit as st
 import pandas as pd
-import pyodbc
 import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime
-import os
-from dotenv import load_dotenv
 
-# Load environment variables
-load_dotenv()
+# Import unified database connection module
+from azure_db import query_data, get_connection_mode, test_connection
 
 # Team Saudi Brand Colors
 TEAL_PRIMARY = '#007167'
@@ -55,24 +52,12 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-@st.cache_resource
-def get_connection():
-    """Connect to Azure SQL Database"""
-    conn_str = os.getenv('AZURE_SQL_CONN')
-    if not conn_str:
-        st.error("⚠️ AZURE_SQL_CONN not found in .env file")
-        st.stop()
-
-    try:
-        conn = pyodbc.connect(conn_str)
-        return conn
-    except Exception as e:
-        st.error(f"❌ Failed to connect to Azure SQL: {e}")
-        st.stop()
+# Show connection mode in sidebar
+st.sidebar.info(f"📊 Database: {get_connection_mode().upper()}")
 
 @st.cache_data(ttl=300)  # Cache for 5 minutes
-def load_results(_conn):
-    """Load results from Azure SQL"""
+def load_results():
+    """Load results from database (Azure SQL or SQLite)"""
     query = """
     SELECT
         competition_name,
@@ -85,29 +70,37 @@ def load_results(_conn):
     FROM Results
     ORDER BY scraped_at DESC
     """
-    return pd.read_sql(query, _conn)
+    try:
+        return query_data(query)
+    except Exception as e:
+        st.error(f"❌ Failed to load results: {e}")
+        return pd.DataFrame()
 
 @st.cache_data(ttl=300)
-def load_rankings(_conn):
-    """Load rankings from Azure SQL"""
+def load_rankings():
+    """Load rankings from database (Azure SQL or SQLite)"""
     query = "SELECT * FROM Rankings ORDER BY scraped_at DESC"
-    return pd.read_sql(query, _conn)
+    try:
+        return query_data(query)
+    except Exception as e:
+        # Rankings table might not exist, return empty dataframe
+        return pd.DataFrame()
 
 @st.cache_data(ttl=300)
-def load_records(_conn):
-    """Load records from Azure SQL"""
+def load_records():
+    """Load records from database (Azure SQL or SQLite)"""
     query = "SELECT * FROM Records ORDER BY scraped_at DESC"
-    return pd.read_sql(query, _conn)
-
-# Connect to database
-with st.spinner("Connecting to Azure SQL..."):
-    conn = get_connection()
+    try:
+        return query_data(query)
+    except Exception as e:
+        # Records table might not exist, return empty dataframe
+        return pd.DataFrame()
 
 # Load data
 with st.spinner("Loading data..."):
-    results_df = load_results(conn)
-    rankings_df = load_rankings(conn)
-    records_df = load_records(conn)
+    results_df = load_results()
+    rankings_df = load_rankings()
+    records_df = load_records()
 
 # Overview metrics
 st.markdown("### 📊 Database Overview")
@@ -258,7 +251,7 @@ with col1:
         last_update = results_df['scraped_at'].max()
         st.caption(f"Last updated: {last_update}")
 with col2:
-    st.caption(f"Database: Azure SQL (REDACTED_DB)")
+    st.caption(f"Database: {get_connection_mode().upper()} (REDACTED_DB)")
 with col3:
     if st.button("🔄 Refresh Data"):
         st.cache_data.clear()

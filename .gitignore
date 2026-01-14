@@ -3,6 +3,12 @@
 *.env
 .env.local
 
+# Streamlit secrets (CRITICAL - never commit actual secrets)
+.streamlit/secrets.toml
+
+# Keep template in repo for reference
+!.streamlit/secrets.toml.example
+
 # Python
 __pycache__/
 *.py[cod]
