@@ -1,7 +1,7 @@
 """
 Para Athletics Azure Database Dashboard
 Connects to Azure SQL and displays real-time data
-Includes Championship Analysis capabilities
+Includes Championship Analysis, Records, Rankings, and Pre-Competition Analysis
 """
 
 import streamlit as st
@@ -10,6 +10,8 @@ import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime
+from pathlib import Path
+from glob import glob
 
 # Import unified database connection module
 from azure_db import query_data, get_connection_mode, test_connection
@@ -80,23 +82,96 @@ def load_results():
 
 @st.cache_data(ttl=300)
 def load_rankings():
-    """Load rankings from database (Azure SQL or SQLite)"""
+    """Load rankings from database or local CSV files"""
+    # First try Azure SQL
     query = "SELECT * FROM Rankings ORDER BY scraped_at DESC"
     try:
-        return query_data(query)
-    except Exception as e:
-        # Rankings table might not exist, return empty dataframe
-        return pd.DataFrame()
+        df = query_data(query)
+        if len(df) > 0:
+            return df
+    except:
+        pass
+
+    # Fallback to local CSV files
+    return load_local_rankings()
 
 @st.cache_data(ttl=300)
 def load_records():
-    """Load records from database (Azure SQL or SQLite)"""
+    """Load records from database or local CSV files"""
+    # First try Azure SQL
     query = "SELECT * FROM Records ORDER BY scraped_at DESC"
     try:
-        return query_data(query)
-    except Exception as e:
-        # Records table might not exist, return empty dataframe
+        df = query_data(query)
+        if len(df) > 0:
+            return df
+    except:
+        pass
+
+    # Fallback to local CSV files
+    return load_local_records()
+
+@st.cache_data(ttl=600)
+def load_local_records():
+    """Load records from local CSV files in data/Records/"""
+    records_path = Path("data/Records")
+    if not records_path.exists():
         return pd.DataFrame()
+
+    all_records = []
+    for csv_file in records_path.glob("*.csv"):
+        try:
+            df = pd.read_csv(csv_file)
+            # Extract record type from filename
+            filename = csv_file.stem
+            if "World" in filename:
+                df['record_type'] = 'World Record'
+            elif "Paralympic" in filename:
+                df['record_type'] = 'Paralympic Record'
+            elif "Asian" in filename:
+                df['record_type'] = 'Asian Record'
+            elif "European" in filename:
+                df['record_type'] = 'European Record'
+            elif "African" in filename:
+                df['record_type'] = 'African Record'
+            elif "Americas" in filename:
+                df['record_type'] = 'Americas Record'
+            elif "Championship" in filename:
+                df['record_type'] = 'Championship Record'
+            elif "Oceanian" in filename:
+                df['record_type'] = 'Oceanian Record'
+            else:
+                df['record_type'] = 'Other'
+            all_records.append(df)
+        except Exception as e:
+            continue
+
+    if all_records:
+        return pd.concat(all_records, ignore_index=True)
+    return pd.DataFrame()
+
+@st.cache_data(ttl=600)
+def load_local_rankings():
+    """Load rankings from local CSV files in data/Rankings/"""
+    rankings_path = Path("data/Rankings")
+    if not rankings_path.exists():
+        return pd.DataFrame()
+
+    all_rankings = []
+    for csv_file in rankings_path.glob("*.csv"):
+        try:
+            df = pd.read_csv(csv_file)
+            # Extract year from filename
+            parts = csv_file.stem.split("_")
+            if parts:
+                year = parts[-1] if parts[-1].isdigit() else "Unknown"
+                df['ranking_year'] = year
+            all_rankings.append(df)
+        except Exception as e:
+            continue
+
+    if all_rankings:
+        return pd.concat(all_rankings, ignore_index=True)
+    return pd.DataFrame()
 
 @st.cache_data(ttl=600)
 def get_major_championships(results_df):
@@ -234,7 +309,7 @@ with col4:
     st.metric("Unique Athletes", f"{unique_athletes:,}")
 
 # Tabs
-tab1, tab2, tab3, tab4, tab5 = st.tabs(["🏃 Results", "📈 Rankings", "🏆 Records", "🇸🇦 Saudi Arabia", "📊 Championship Analysis"])
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["🏃 Results", "📈 Rankings", "🏆 Records", "🇸🇦 Saudi Arabia", "📊 Championship Analysis", "👤 Athlete Analysis"])
 
 with tab1:
     st.markdown("### Competition Results")
@@ -291,25 +366,116 @@ with tab2:
     st.markdown("### IPC Rankings")
 
     if len(rankings_df) > 0:
+        # Show year filter if available
+        col1, col2 = st.columns(2)
+
+        with col1:
+            if 'ranking_year' in rankings_df.columns:
+                years = ['All'] + sorted(rankings_df['ranking_year'].dropna().unique().tolist(), reverse=True)
+                selected_year = st.selectbox("Filter by Year", years)
+            else:
+                selected_year = 'All'
+
+        with col2:
+            # Event filter
+            event_col = 'Event' if 'Event' in rankings_df.columns else 'event' if 'event' in rankings_df.columns else None
+            if event_col:
+                events = ['All'] + sorted(rankings_df[event_col].dropna().unique().tolist())
+                selected_rank_event = st.selectbox("Filter by Event", events, key="ranking_event")
+            else:
+                selected_rank_event = 'All'
+
+        # Apply filters
+        filtered_rankings = rankings_df.copy()
+        if selected_year != 'All' and 'ranking_year' in filtered_rankings.columns:
+            filtered_rankings = filtered_rankings[filtered_rankings['ranking_year'] == selected_year]
+        if selected_rank_event != 'All' and event_col:
+            filtered_rankings = filtered_rankings[filtered_rankings[event_col] == selected_rank_event]
+
+        # Metrics
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Total Rankings", f"{len(filtered_rankings):,}")
+        with col2:
+            if event_col:
+                st.metric("Events", filtered_rankings[event_col].nunique())
+        with col3:
+            if 'ranking_year' in filtered_rankings.columns:
+                st.metric("Years", rankings_df['ranking_year'].nunique())
+
         st.dataframe(
-            rankings_df.head(100),
+            filtered_rankings.head(200),
             use_container_width=True,
             hide_index=True
         )
+
+        # Saudi athletes in rankings
+        nat_col = 'Nat' if 'Nat' in rankings_df.columns else 'nationality' if 'nationality' in rankings_df.columns else None
+        if nat_col:
+            saudi_rankings = filtered_rankings[filtered_rankings[nat_col] == 'KSA']
+            if len(saudi_rankings) > 0:
+                st.markdown("#### Saudi Athletes in Rankings")
+                st.dataframe(saudi_rankings, use_container_width=True, hide_index=True)
     else:
-        st.info("No rankings data available yet. Run the GitHub workflow to populate.")
+        st.info("No rankings data available. Check data/Rankings/ folder or run scrapers.")
 
 with tab3:
-    st.markdown("### World Records")
+    st.markdown("### World & Regional Records")
 
     if len(records_df) > 0:
-        st.dataframe(
-            records_df.head(100),
-            use_container_width=True,
-            hide_index=True
-        )
+        # Show record type filter
+        if 'record_type' in records_df.columns:
+            record_types = ['All'] + sorted(records_df['record_type'].dropna().unique().tolist())
+            selected_record_type = st.selectbox("Filter by Record Type", record_types)
+
+            filtered_records = records_df.copy()
+            if selected_record_type != 'All':
+                filtered_records = filtered_records[filtered_records['record_type'] == selected_record_type]
+
+            # Show metrics
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("Total Records", f"{len(filtered_records):,}")
+            with col2:
+                if 'Event' in filtered_records.columns:
+                    st.metric("Events", filtered_records['Event'].nunique())
+                elif 'event' in filtered_records.columns:
+                    st.metric("Events", filtered_records['event'].nunique())
+            with col3:
+                if 'record_type' in filtered_records.columns:
+                    st.metric("Record Types", records_df['record_type'].nunique())
+
+            # Display table
+            st.dataframe(
+                filtered_records.head(200),
+                use_container_width=True,
+                hide_index=True
+            )
+
+            # Record type distribution chart
+            st.markdown("#### Records by Type")
+            type_counts = records_df['record_type'].value_counts()
+            fig = px.bar(
+                x=type_counts.index,
+                y=type_counts.values,
+                labels={'x': 'Record Type', 'y': 'Count'}
+            )
+            fig.update_traces(marker_color=GOLD_ACCENT)
+            fig.update_layout(
+                plot_bgcolor='white',
+                paper_bgcolor='white',
+                font=dict(family='Inter, sans-serif', color='#333'),
+                xaxis_tickangle=-45
+            )
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.dataframe(
+                records_df.head(100),
+                use_container_width=True,
+                hide_index=True
+            )
     else:
-        st.info("No records data available yet. Run the GitHub workflow to populate.")
+        st.info("No records data available. Check data/Records/ folder or run scrapers.")
 
 with tab4:
     st.markdown("### 🇸🇦 Saudi Arabia Performance")
@@ -491,6 +657,142 @@ with tab5:
                 st.info("No Saudi athletes found in major championship results.")
         else:
             st.warning("No major championship data found in results. Data may need event classification.")
+    else:
+        st.info("No results data available yet. Run the GitHub workflow to populate.")
+
+with tab6:
+    st.markdown("### Athlete Analysis & Event Comparison")
+
+    if len(results_df) > 0:
+        # Athlete search
+        col1, col2 = st.columns(2)
+
+        with col1:
+            all_athletes = sorted(results_df['athlete_name'].dropna().unique().tolist())
+            selected_athlete = st.selectbox("Select Athlete", [''] + all_athletes, key="athlete_search")
+
+        with col2:
+            # Event comparison selector
+            all_events = sorted(results_df['event_name'].dropna().unique().tolist())
+            compare_event = st.selectbox("Compare Event Standards", [''] + all_events, key="compare_event")
+
+        if selected_athlete:
+            st.markdown(f"## {selected_athlete}")
+
+            athlete_data = results_df[results_df['athlete_name'] == selected_athlete].copy()
+
+            # Athlete overview
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                st.metric("Total Performances", len(athlete_data))
+            with col2:
+                st.metric("Competitions", athlete_data['competition_name'].nunique())
+            with col3:
+                st.metric("Events", athlete_data['event_name'].nunique())
+            with col4:
+                nationality = athlete_data['nationality'].iloc[0] if len(athlete_data) > 0 else "Unknown"
+                st.metric("Nationality", nationality)
+
+            # Events competed
+            st.markdown("#### Events Competed")
+            event_counts = athlete_data['event_name'].value_counts()
+            fig = px.bar(
+                x=event_counts.index,
+                y=event_counts.values,
+                labels={'x': 'Event', 'y': 'Performances'}
+            )
+            fig.update_traces(marker_color=TEAL_PRIMARY)
+            fig.update_layout(
+                plot_bgcolor='white',
+                paper_bgcolor='white',
+                font=dict(family='Inter, sans-serif', color='#333'),
+                xaxis_tickangle=-45,
+                height=300
+            )
+            st.plotly_chart(fig, use_container_width=True)
+
+            # Performance history
+            st.markdown("#### Performance History")
+            st.dataframe(
+                athlete_data[['competition_name', 'event_name', 'performance', 'date']].sort_values('date', ascending=False),
+                use_container_width=True,
+                hide_index=True
+            )
+
+            # Compare to championship standards
+            if compare_event:
+                st.markdown(f"#### {selected_athlete} vs Championship Standards - {compare_event}")
+
+                athlete_event_data = athlete_data[athlete_data['event_name'].str.contains(compare_event, case=False, na=False)]
+
+                if len(athlete_event_data) > 0:
+                    athlete_best = athlete_event_data['performance'].iloc[0]
+                    athlete_perf_val = parse_performance(athlete_best)
+
+                    # Get championship standards for this event
+                    major_df = get_major_championships(results_df)
+                    event_standards = analyze_championship_standards(major_df, compare_event)
+
+                    if not event_standards.empty and athlete_perf_val:
+                        st.markdown(f"**Athlete's Best: {athlete_best}**")
+
+                        # Show gap to medal standards
+                        for _, row in event_standards.iterrows():
+                            gold_val = parse_performance(row['Gold']) if pd.notna(row['Gold']) else None
+                            bronze_val = parse_performance(row['Bronze']) if pd.notna(row['Bronze']) else None
+
+                            if gold_val and bronze_val:
+                                is_track = is_track_event(compare_event)
+
+                                if is_track:
+                                    gold_gap = athlete_perf_val - gold_val
+                                    bronze_gap = athlete_perf_val - bronze_val
+                                    gold_status = "ahead" if gold_gap < 0 else "behind"
+                                    bronze_status = "ahead" if bronze_gap < 0 else "behind"
+                                else:
+                                    gold_gap = gold_val - athlete_perf_val
+                                    bronze_gap = bronze_val - athlete_perf_val
+                                    gold_status = "behind" if gold_gap > 0 else "ahead"
+                                    bronze_status = "behind" if bronze_gap > 0 else "ahead"
+
+                                st.markdown(f"**{row['Competition']}**")
+                                col1, col2 = st.columns(2)
+                                with col1:
+                                    st.markdown(f"Gold: {row['Gold']} ({abs(gold_gap):.2f} {gold_status})")
+                                with col2:
+                                    st.markdown(f"Bronze: {row['Bronze']} ({abs(bronze_gap):.2f} {bronze_status})")
+                else:
+                    st.info(f"No performances found for {selected_athlete} in {compare_event}")
+
+        # Event leaderboard
+        st.markdown("---")
+        st.markdown("#### Event Leaderboard")
+
+        leaderboard_event = st.selectbox("Select Event for Leaderboard", [''] + all_events, key="leaderboard_event")
+
+        if leaderboard_event:
+            event_results = results_df[results_df['event_name'].str.contains(leaderboard_event, case=False, na=False)].copy()
+            event_results['perf_value'] = event_results['performance'].apply(parse_performance)
+            event_results = event_results.dropna(subset=['perf_value'])
+
+            is_track = is_track_event(leaderboard_event)
+            event_results = event_results.sort_values('perf_value', ascending=is_track)
+
+            # Top performers
+            top_performers = event_results.groupby('athlete_name').agg({
+                'performance': 'first',
+                'perf_value': 'min' if is_track else 'max',
+                'nationality': 'first',
+                'competition_name': 'count'
+            }).reset_index()
+            top_performers.columns = ['Athlete', 'Best Performance', 'Performance Value', 'Nationality', 'Total Results']
+            top_performers = top_performers.sort_values('Performance Value', ascending=is_track).head(20)
+
+            st.dataframe(
+                top_performers[['Athlete', 'Best Performance', 'Nationality', 'Total Results']],
+                use_container_width=True,
+                hide_index=True
+            )
     else:
         st.info("No results data available yet. Run the GitHub workflow to populate.")
 
