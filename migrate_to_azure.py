@@ -28,7 +28,7 @@ def migrate_results():
 
     csv_path = CSV_PATHS['results']
     if not os.path.exists(csv_path):
-        print(f"⚠️  Results CSV not found: {csv_path}")
+        print(f"[WARNING]  Results CSV not found: {csv_path}")
         return
 
     # Load CSV
@@ -87,13 +87,13 @@ def migrate_results():
                 except Exception as e:
                     errors += 1
                     if errors == 1:
-                        print(f"⚠️  First error: {e}")
+                        print(f"[WARNING]  First error: {e}")
 
             conn.commit()
             progress = ((i + len(batch)) / len(df)) * 100
             print(f"  Progress: {progress:.1f}% ({inserted:,} rows)", end='\r')
 
-        print(f"\n✅ Results migration complete!")
+        print(f"\n[OK] Results migration complete!")
         print(f"   Inserted: {inserted:,} rows")
         print(f"   Errors: {errors:,}")
 
@@ -108,14 +108,14 @@ def migrate_rankings():
     files = glob(pattern)
 
     if not files:
-        print(f"⚠️  No ranking files found: {pattern}")
+        print(f"[WARNING]  No ranking files found: {pattern}")
         return
 
     print(f"Found {len(files)} ranking files")
 
     # TODO: Implement rankings migration
     # Rankings require parsing year from filename and mapping columns
-    print("⚠️  Rankings migration not yet implemented")
+    print("[WARNING]  Rankings migration not yet implemented")
     print("   Manual upload via Azure Portal Query Editor recommended")
 
 
@@ -129,14 +129,14 @@ def migrate_records():
     files = glob(pattern)
 
     if not files:
-        print(f"⚠️  No record files found: {pattern}")
+        print(f"[WARNING]  No record files found: {pattern}")
         return
 
     print(f"Found {len(files)} record files")
 
     # TODO: Implement records migration
     # Records require parsing record type and classification
-    print("⚠️  Records migration not yet implemented")
+    print("[WARNING]  Records migration not yet implemented")
     print("   Manual upload via Azure Portal Query Editor recommended")
 
 
@@ -173,25 +173,31 @@ def verify_migration():
 
 def main():
     """Main migration workflow"""
+    import sys
+
     print("\n" + "="*60)
     print("PARA ATHLETICS DATA MIGRATION")
-    print("CSV → Azure SQL Database")
+    print("CSV -> Azure SQL Database")
     print("="*60)
 
     # Check connection mode
     mode = get_connection_mode()
     if mode != 'azure':
-        print(f"\n❌ ERROR: Not connected to Azure SQL (mode: {mode})")
+        print(f"\n[ERROR] Not connected to Azure SQL (mode: {mode})")
         print("   Please configure AZURE_SQL_CONN in .env file")
         return
 
-    print(f"\n✅ Connection mode: {mode.upper()}")
+    print(f"\n[OK] Connection mode: {mode.upper()}")
 
-    # Confirm migration
-    response = input("\n⚠️  This will DELETE existing data and replace it. Continue? (yes/no): ")
-    if response.lower() != 'yes':
-        print("Migration cancelled")
-        return
+    # Check for --yes flag to skip confirmation
+    if '--yes' in sys.argv or '-y' in sys.argv:
+        print("\n[INFO] Running with --yes flag, skipping confirmation")
+    else:
+        # Confirm migration
+        response = input("\n[WARNING] This will DELETE existing data and replace it. Continue? (yes/no): ")
+        if response.lower() != 'yes':
+            print("Migration cancelled")
+            return
 
     # Run migrations
     try:
@@ -201,10 +207,10 @@ def main():
         verify_migration()
 
         print("\n" + "="*60)
-        print("✅ MIGRATION COMPLETE")
+        print("[SUCCESS] MIGRATION COMPLETE")
         print("="*60)
     except Exception as e:
-        print(f"\n❌ Migration failed: {e}")
+        print(f"\n[ERROR] Migration failed: {e}")
         raise
 
 
