@@ -27,3 +27,8 @@ fuzzywuzzy>=0.18.0
 # Dashboard (Streamlit Cloud deployment)
 streamlit>=1.28.0
 plotly>=5.18.0
+
+# Azure Blob Storage + Parquet (cloud data layer)
+azure-storage-blob>=12.19.0
+pyarrow>=14.0.0
+duckdb>=0.9.0

@@ -53,6 +53,7 @@ jobs:
         if: ${{ github.event.inputs.scraper_type == 'all' || github.event.inputs.scraper_type == 'rankings' || github.event_name == 'schedule' }}
         env:
           AZURE_SQL_CONN: ${{ secrets.SQL_CONNECTION_STRING }}
+          AZURE_STORAGE_CONNECTION_STRING: ${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}
           SCRAPER_MODE: cloud
         run: python cloud_scraper.py --type rankings
 
@@ -60,6 +61,7 @@ jobs:
         if: ${{ github.event.inputs.scraper_type == 'all' || github.event.inputs.scraper_type == 'records' || github.event_name == 'schedule' }}
         env:
           AZURE_SQL_CONN: ${{ secrets.SQL_CONNECTION_STRING }}
+          AZURE_STORAGE_CONNECTION_STRING: ${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}
           SCRAPER_MODE: cloud
         run: python cloud_scraper.py --type records
 
@@ -67,8 +69,15 @@ jobs:
         if: ${{ github.event.inputs.scraper_type == 'all' || github.event.inputs.scraper_type == 'tilastopaja' || github.event_name == 'schedule' }}
         env:
           AZURE_SQL_CONN: ${{ secrets.SQL_CONNECTION_STRING }}
+          AZURE_STORAGE_CONNECTION_STRING: ${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}
           SCRAPER_MODE: cloud
         run: python tilastopaja_updater.py --check-and-update
+
+      - name: Update Parquet files in Azure Blob Storage
+        if: ${{ github.event.inputs.scraper_type == 'all' || github.event_name == 'schedule' }}
+        env:
+          AZURE_STORAGE_CONNECTION_STRING: ${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}
+        run: python convert_csv_to_parquet.py
 
       - name: Upload logs as artifact
         if: always()
