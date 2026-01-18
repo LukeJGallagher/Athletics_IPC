@@ -1,6 +1,6 @@
 """
 Para Athletics Azure Database Dashboard
-Connects to Azure SQL and displays real-time data
+Connects to Azure Blob Storage (Parquet) for real-time data
 Includes Championship Analysis, Records, Rankings, and Pre-Competition Analysis
 """
 
@@ -13,8 +13,21 @@ from datetime import datetime
 from pathlib import Path
 from glob import glob
 
-# Import unified database connection module
-from azure_db import query_data, get_connection_mode, test_connection
+# Import Parquet data layer for Azure Blob Storage
+try:
+    from parquet_data_layer import (
+        get_data_manager,
+        get_connection_mode,
+        load_results as parquet_load_results,
+        load_rankings as parquet_load_rankings,
+        load_records as parquet_load_records
+    )
+    PARQUET_AVAILABLE = True
+except Exception as e:
+    print(f"Parquet data layer not available: {e}")
+    PARQUET_AVAILABLE = False
+    def get_connection_mode():
+        return "local_csv"
 
 # Team Saudi Brand Colors
 TEAL_PRIMARY = '#007167'
@@ -51,64 +64,75 @@ st.markdown(f"""
             padding: 2rem; border-radius: 8px; margin-bottom: 2rem;">
     <h1 style="color: white; margin: 0;">🏃‍♂️ Para Athletics Dashboard</h1>
     <p style="color: rgba(255,255,255,0.9); margin: 0.5rem 0 0 0;">
-        Real-time data from Azure SQL Database
+        Real-time data from Azure Blob Storage (Parquet)
     </p>
 </div>
 """, unsafe_allow_html=True)
 
 # Show connection mode in sidebar
-st.sidebar.info(f"📊 Database: {get_connection_mode().upper()}")
+mode = get_connection_mode()
+mode_display = {
+    'azure_blob': 'Azure Blob Storage',
+    'local_parquet': 'Local Parquet',
+    'local_csv': 'Local CSV'
+}.get(mode, mode)
+st.sidebar.info(f"📊 Data: {mode_display}")
 
 @st.cache_data(ttl=300)  # Cache for 5 minutes
 def load_results():
-    """Load results from database (Azure SQL or SQLite)"""
-    query = """
-    SELECT
-        competition_name,
-        event_name,
-        athlete_name,
-        nationality,
-        performance,
-        date,
-        scraped_at
-    FROM Results
-    ORDER BY scraped_at DESC
-    """
+    """Load results from Parquet (Azure Blob Storage or local cache)"""
     try:
-        return query_data(query)
+        if PARQUET_AVAILABLE:
+            df = parquet_load_results()
+            if not df.empty:
+                # Normalize column names to lowercase
+                df.columns = df.columns.str.lower()
+                return df
+        # Fallback to local CSV
+        return load_local_results()
     except Exception as e:
         st.error(f"❌ Failed to load results: {e}")
         return pd.DataFrame()
 
+def load_local_results():
+    """Load results from local CSV file"""
+    csv_path = Path("data/Tilastoptija/ksaoutputipc3.csv")
+    if csv_path.exists():
+        try:
+            return pd.read_csv(csv_path, encoding='latin-1', low_memory=False)
+        except Exception as e:
+            st.error(f"Failed to load local CSV: {e}")
+    return pd.DataFrame()
+
 @st.cache_data(ttl=300)
 def load_rankings():
-    """Load rankings from database or local CSV files"""
-    # First try Azure SQL
-    query = "SELECT * FROM Rankings ORDER BY scraped_at DESC"
+    """Load rankings from Parquet (Azure Blob Storage or local cache)"""
     try:
-        df = query_data(query)
-        if len(df) > 0:
-            return df
-    except:
-        pass
-
-    # Fallback to local CSV files
-    return load_local_rankings()
+        if PARQUET_AVAILABLE:
+            df = parquet_load_rankings()
+            if not df.empty:
+                df.columns = df.columns.str.lower()
+                return df
+        # Fallback to local CSV files
+        return load_local_rankings()
+    except Exception as e:
+        st.warning(f"Rankings load issue: {e}")
+        return load_local_rankings()
 
 @st.cache_data(ttl=300)
 def load_records():
-    """Load records from database or local CSV files"""
-    # First try Azure SQL
-    query = "SELECT * FROM Records ORDER BY scraped_at DESC"
+    """Load records from Parquet (Azure Blob Storage or local cache)"""
     try:
-        df = query_data(query)
-        if len(df) > 0:
-            return df
-    except:
-        pass
-
-    # Fallback to local CSV files
-    return load_local_records()
+        if PARQUET_AVAILABLE:
+            df = parquet_load_records()
+            if not df.empty:
+                df.columns = df.columns.str.lower()
+                return df
+        # Fallback to local CSV files
+        return load_local_records()
+    except Exception as e:
+        st.warning(f"Records load issue: {e}")
+        return load_local_records()
 
 @st.cache_data(ttl=600)
 def load_local_records():
