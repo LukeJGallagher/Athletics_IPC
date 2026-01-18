@@ -936,10 +936,18 @@ st.markdown("---")
 col1, col2, col3 = st.columns(3)
 with col1:
     if len(results_df) > 0:
-        last_update = results_df['scraped_at'].max()
-        st.caption(f"Last updated: {last_update}")
+        # Try to get last update from available date columns
+        if 'scraped_at' in results_df.columns:
+            last_update = results_df['scraped_at'].max()
+        elif 'date' in results_df.columns:
+            last_update = results_df['date'].max()
+        elif 'competitiondate' in results_df.columns:
+            last_update = results_df['competitiondate'].max()
+        else:
+            last_update = "Unknown"
+        st.caption(f"Data from: {last_update}")
 with col2:
-    st.caption(f"Database: {get_connection_mode().upper()} (REDACTED_DB)")
+    st.caption(f"Source: {get_connection_mode().upper()}")
 with col3:
     if st.button("🔄 Refresh Data"):
         st.cache_data.clear()
