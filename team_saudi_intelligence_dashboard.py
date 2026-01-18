@@ -418,7 +418,18 @@ def main():
         return
 
     # Sidebar - Main Navigation
-    st.sidebar.image("https://via.placeholder.com/300x100/1B8B7D/FFFFFF?text=Team+Saudi", use_column_width=True)
+    # Load Team Saudi logo
+    logo_path = Path("assets/TS-Logos_Horizontal.svg")
+    if logo_path.exists():
+        st.sidebar.image(str(logo_path), use_column_width=True)
+    else:
+        st.sidebar.markdown(f"""
+        <div style="background: linear-gradient(135deg, {COLORS['primary_green']} 0%, {COLORS['teal']} 100%);
+                    padding: 1rem; border-radius: 8px; text-align: center; margin-bottom: 1rem;">
+            <h3 style="color: white; margin: 0;">Team Saudi</h3>
+            <p style="color: rgba(255,255,255,0.8); margin: 0; font-size: 0.8rem;">Para Athletics</p>
+        </div>
+        """, unsafe_allow_html=True)
 
     # Show data connection mode
     if PARQUET_AVAILABLE:
