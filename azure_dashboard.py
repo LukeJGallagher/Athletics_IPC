@@ -43,18 +43,58 @@ st.set_page_config(
     layout="wide"
 )
 
-# Custom CSS
-st.markdown("""
+# Custom CSS - Professional sports theme, hide default spinner
+st.markdown(f"""
 <style>
-    .main {
+    .main {{
         background-color: #f8f9fa;
-    }
-    .stMetric {
+    }}
+    .stMetric {{
         background-color: white;
         padding: 1rem;
         border-radius: 8px;
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
+    }}
+
+    /* Hide default Streamlit spinner (donut) */
+    .stSpinner > div {{
+        display: none;
+    }}
+
+    /* Custom sports-themed spinner */
+    .stSpinner {{
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 2rem;
+    }}
+
+    .stSpinner::after {{
+        content: "Loading data...";
+        display: block;
+        font-size: 1rem;
+        color: {TEAL_PRIMARY};
+        font-weight: 500;
+        animation: pulse 1.5s ease-in-out infinite;
+    }}
+
+    @keyframes pulse {{
+        0%, 100% {{ opacity: 1; }}
+        50% {{ opacity: 0.5; }}
+    }}
+
+    /* Style the spinner text container */
+    [data-testid="stSpinnerContainer"] {{
+        background: linear-gradient(135deg, {TEAL_PRIMARY}15 0%, {TEAL_DARK}15 100%);
+        border-radius: 8px;
+        padding: 1.5rem;
+        border-left: 4px solid {TEAL_PRIMARY};
+    }}
+
+    /* Progress bar styling */
+    .stProgress > div > div {{
+        background-color: {TEAL_PRIMARY};
+    }}
 </style>
 """, unsafe_allow_html=True)
 
@@ -78,6 +118,58 @@ mode_display = {
 }.get(mode, mode)
 st.sidebar.info(f"📊 Data: {mode_display}")
 
+def create_athlete_name_column(df):
+    """Create athlete_name column from firstname/lastname or givenname/familyname"""
+    if df.empty:
+        return df
+
+    # Check for different column naming conventions
+    first_col = None
+    last_col = None
+
+    if 'firstname' in df.columns:
+        first_col = 'firstname'
+    elif 'givenname' in df.columns:
+        first_col = 'givenname'
+
+    if 'lastname' in df.columns:
+        last_col = 'lastname'
+    elif 'familyname' in df.columns:
+        last_col = 'familyname'
+
+    if first_col and last_col:
+        df['athlete_name'] = df[first_col].fillna('').astype(str) + ' ' + df[last_col].fillna('').astype(str)
+        df['athlete_name'] = df['athlete_name'].str.strip()
+    elif 'athlete_name' not in df.columns:
+        # If no name columns, create empty athlete_name
+        df['athlete_name'] = 'Unknown'
+
+    return df
+
+def normalize_column_names(df):
+    """Normalize column names to expected format"""
+    if df.empty:
+        return df
+
+    # Column mapping from Tilastopaja format to expected format
+    column_mapping = {
+        'eventname': 'event_name',
+        'competitionname': 'competition_name',
+        'performancevalue': 'performance',
+        'mark': 'performance',
+        'nat': 'nationality',
+        'country': 'nationality',
+        'compdate': 'date',
+        'competitiondate': 'date'
+    }
+
+    # Apply mapping for columns that exist
+    for old_name, new_name in column_mapping.items():
+        if old_name in df.columns and new_name not in df.columns:
+            df[new_name] = df[old_name]
+
+    return df
+
 @st.cache_data(ttl=300)  # Cache for 5 minutes
 def load_results():
     """Load results from Parquet (Azure Blob Storage or local cache)"""
@@ -87,6 +179,10 @@ def load_results():
             if not df.empty:
                 # Normalize column names to lowercase
                 df.columns = df.columns.str.lower()
+                # Create athlete_name from firstname/lastname
+                df = create_athlete_name_column(df)
+                # Normalize other column names
+                df = normalize_column_names(df)
                 return df
         # Fallback to local CSV
         return load_local_results()
@@ -99,7 +195,11 @@ def load_local_results():
     csv_path = Path("data/Tilastoptija/ksaoutputipc3.csv")
     if csv_path.exists():
         try:
-            return pd.read_csv(csv_path, encoding='latin-1', low_memory=False)
+            df = pd.read_csv(csv_path, encoding='latin-1', low_memory=False)
+            df.columns = df.columns.str.lower()
+            df = create_athlete_name_column(df)
+            df = normalize_column_names(df)
+            return df
         except Exception as e:
             st.error(f"Failed to load local CSV: {e}")
     return pd.DataFrame()
