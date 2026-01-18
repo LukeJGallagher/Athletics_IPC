@@ -43,7 +43,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# Custom CSS - Professional sports theme, hide default spinner
+# Custom CSS - Professional sports theme, completely hide default spinner animations
 st.markdown(f"""
 <style>
     .main {{
@@ -56,39 +56,50 @@ st.markdown(f"""
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }}
 
-    /* Hide default Streamlit spinner (donut) */
-    .stSpinner > div {{
-        display: none;
+    /* COMPLETELY HIDE all Streamlit spinner animations (donuts, cakes, cookies, etc.) */
+    .stSpinner > div > div,
+    .stSpinner svg,
+    .stSpinner [data-testid="stSpinner"],
+    [data-testid="stSpinner"] > div,
+    [data-testid="stSpinner"] svg,
+    .stSpinner > div:first-child,
+    div[data-testid="stSpinnerAnimation"],
+    .stSpinner div[class*="Animation"],
+    .stSpinner div[class*="spinner"] {{
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+        height: 0 !important;
+        width: 0 !important;
+        overflow: hidden !important;
     }}
 
-    /* Custom sports-themed spinner */
-    .stSpinner {{
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        padding: 2rem;
+    /* Style the spinner container with Team Saudi branding */
+    .stSpinner,
+    [data-testid="stSpinnerContainer"] {{
+        background: linear-gradient(135deg, {TEAL_PRIMARY}10 0%, {TEAL_DARK}10 100%);
+        border-radius: 8px;
+        padding: 1.5rem;
+        border-left: 4px solid {TEAL_PRIMARY};
+        min-height: 60px;
     }}
 
-    .stSpinner::after {{
-        content: "Loading data...";
-        display: block;
-        font-size: 1rem;
+    /* Style the spinner text (the message we pass to st.spinner) */
+    .stSpinner > div:last-child,
+    [data-testid="stSpinnerContainer"] > div:last-child {{
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
         color: {TEAL_PRIMARY};
-        font-weight: 500;
+        font-weight: 600;
+        font-size: 1rem;
+        text-align: center;
         animation: pulse 1.5s ease-in-out infinite;
     }}
 
     @keyframes pulse {{
         0%, 100% {{ opacity: 1; }}
-        50% {{ opacity: 0.5; }}
-    }}
-
-    /* Style the spinner text container */
-    [data-testid="stSpinnerContainer"] {{
-        background: linear-gradient(135deg, {TEAL_PRIMARY}15 0%, {TEAL_DARK}15 100%);
-        border-radius: 8px;
-        padding: 1.5rem;
-        border-left: 4px solid {TEAL_PRIMARY};
+        50% {{ opacity: 0.6; }}
     }}
 
     /* Progress bar styling */
