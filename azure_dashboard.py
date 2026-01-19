@@ -74,6 +74,24 @@ st.markdown(f"""
         overflow: hidden !important;
     }}
 
+    /* Hide Streamlit's "App is running/cooking" startup animations */
+    [data-testid="stAppViewBlockContainer"] .stMarkdown img[src*="cooking"],
+    [data-testid="stAppViewBlockContainer"] .stMarkdown img[src*="baking"],
+    [data-testid="stAppViewBlockContainer"] .stMarkdown img[src*="oven"],
+    .stApp [data-testid="stImage"] img[alt*="cooking"],
+    .element-container img[src*="giphy"],
+    .stMarkdown img[src*="tenor"],
+    div[class*="loading"] img,
+    div[class*="Loading"] img {{
+        display: none !important;
+    }}
+
+    /* Hide default Streamlit status messages about cooking/baking */
+    .stStatusWidget,
+    [data-testid="stStatusWidget"] {{
+        display: none !important;
+    }}
+
     /* Style the spinner container with Team Saudi branding */
     .stSpinner,
     [data-testid="stSpinnerContainer"] {{
@@ -122,9 +140,16 @@ st.markdown(f"""
 
 # Team Saudi logo in sidebar
 logo_path = Path("assets/TS-Logos_Horizontal.svg")
+saudi_logo_path = Path("Saudilogo.png")
+
+# Display Saudi logo if available
+if saudi_logo_path.exists():
+    st.sidebar.image(str(saudi_logo_path), width='stretch')
+
+# Display Team Saudi horizontal logo
 if logo_path.exists():
     st.sidebar.image(str(logo_path), width='stretch')
-else:
+elif not saudi_logo_path.exists():
     st.sidebar.markdown(f"""
     <div style="background: linear-gradient(135deg, {TEAL_PRIMARY} 0%, {TEAL_DARK} 100%);
                 padding: 1rem; border-radius: 8px; text-align: center; margin-bottom: 1rem;">

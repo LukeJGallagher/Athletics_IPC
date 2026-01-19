@@ -1,0 +1,24 @@
+[theme]
+primaryColor = "#007167"
+backgroundColor = "#ffffff"
+secondaryBackgroundColor = "#f8f9fa"
+textColor = "#333333"
+font = "sans serif"
+
+[client]
+# Disable the "running" animation that shows cooking images
+showSidebarNavigation = true
+
+[runner]
+# Fast rerun for better UX
+fastReruns = true
+
+[server]
+# Headless mode settings
+headless = true
+enableCORS = false
+enableXsrfProtection = true
+
+[browser]
+# Don't gather usage stats
+gatherUsageStats = false

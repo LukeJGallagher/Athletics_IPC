@@ -105,9 +105,12 @@ python saudi_athletics_management_report.py    # Saudi-specific analysis
 │ Tab 1: Results (filters, top competitions)                  │
 │ Tab 2: Rankings (year/event filters, Saudi highlight)       │
 │ Tab 3: Records (world/regional records by type)             │
-│ Tab 4: Saudi Arabia (KSA-specific analysis)                 │
+│ Tab 4: Saudi Arabia (KSA Athlete Profiles)                  │
+│   └─ Subtabs: Athlete Profile, Squad Overview,              │
+│      Performance Trends, Top Performers                     │
 │ Tab 5: Championship Standards (medal targets, Saudi gaps)   │
-│ Tab 6: Athlete Analysis (profiles, event comparison)        │
+│   └─ Gap Analysis by Championship Type, Medal Calculator    │
+│ Tab 6: Athlete Analysis (country filter, event comparison)  │
 └─────────────────────────────────────────────────────────────┘
 ```
 
