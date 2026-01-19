@@ -871,9 +871,213 @@ class ChampionshipAnalyzer:
         
         return results
     
+    def _get_world_record(self, event, classification, gender):
+        """Get world record for a specific event/classification/gender combination"""
+        if self.world_records is None:
+            return None, None
+
+        # Build search pattern: "Men's 100 m T54" or "Women's 100 m T54"
+        gender_prefix = "Men's" if gender == 'M' else "Women's"
+        # Convert event name: "100m" -> "100 m"
+        event_formatted = event.replace('m', ' m').replace('  ', ' ').strip()
+        search_pattern = f"{gender_prefix} {event_formatted} {classification}"
+
+        # Try to find matching record
+        for _, record in self.world_records.iterrows():
+            record_event = str(record.get('event_name', ''))
+            if classification in record_event and gender_prefix in record_event:
+                # More flexible matching for event name
+                event_base = event.replace('m', '').strip()
+                if event_base in record_event:
+                    perf = record.get('performance', '')
+                    # Parse time format if needed
+                    try:
+                        if ':' in str(perf):
+                            parts = str(perf).split(':')
+                            if len(parts) == 2:
+                                numeric_perf = float(parts[0]) * 60 + float(parts[1])
+                            else:
+                                numeric_perf = float(parts[-1])
+                        else:
+                            numeric_perf = float(perf)
+                        return numeric_perf, str(perf)
+                    except (ValueError, TypeError):
+                        return None, str(perf)
+
+        return None, None
+
+    def _get_asian_championship_standards(self, event, classification, gender):
+        """Get Asian Championship standards from main data"""
+        if self.main_data is None:
+            return None, None, None
+
+        # Filter for Asian Championships
+        asian_data = self.main_data[
+            (self.main_data['competitionname'].str.contains('Asian|Asia', case=False, na=False)) &
+            (self.main_data['eventname'] == event) &
+            (self.main_data['class'] == classification) &
+            (self.main_data['gender'] == gender)
+        ].copy()
+
+        if asian_data.empty:
+            return None, None, None
+
+        # Convert position to numeric
+        asian_data['position'] = pd.to_numeric(asian_data['position'], errors='coerce')
+
+        # Get gold (position 1), bronze (position 3), and 8th place standards
+        gold_data = asian_data[asian_data['position'] == 1]
+        bronze_data = asian_data[asian_data['position'] == 3]
+        eighth_data = asian_data[asian_data['position'] == 8]
+
+        gold_std = None
+        bronze_std = None
+        eighth_std = None
+
+        # Determine if lower is better (time events)
+        is_time_event = event in ['100m', '200m', '400m', '800m', '1500m', '5000m', '10000m',
+                                   '4x100m', '4x400m', 'Marathon']
+
+        if not gold_data.empty:
+            gold_perfs = gold_data['performance'].apply(lambda x: self._extract_performance_from_result(x, event))
+            gold_perfs = gold_perfs.dropna()
+            if len(gold_perfs) > 0:
+                gold_std = gold_perfs.mean()
+
+        if not bronze_data.empty:
+            bronze_perfs = bronze_data['performance'].apply(lambda x: self._extract_performance_from_result(x, event))
+            bronze_perfs = bronze_perfs.dropna()
+            if len(bronze_perfs) > 0:
+                bronze_std = bronze_perfs.mean()
+
+        if not eighth_data.empty:
+            eighth_perfs = eighth_data['performance'].apply(lambda x: self._extract_performance_from_result(x, event))
+            eighth_perfs = eighth_perfs.dropna()
+            if len(eighth_perfs) > 0:
+                eighth_std = eighth_perfs.mean()
+
+        return gold_std, bronze_std, eighth_std
+
+    def _get_saudi_best_performance(self, event, classification, gender):
+        """Get the best Saudi athlete performance for this event/class/gender"""
+        if self.main_data is None:
+            return None, None
+
+        saudi_data = self.main_data[
+            (self.main_data['nationality'].str.contains('KSA', case=False, na=False)) &
+            (self.main_data['eventname'] == event) &
+            (self.main_data['class'] == classification) &
+            (self.main_data['gender'] == gender)
+        ].copy()
+
+        if saudi_data.empty:
+            return None, None
+
+        # Get performances
+        saudi_data['perf_numeric'] = saudi_data['performance'].apply(
+            lambda x: self._extract_performance_from_result(x, event)
+        )
+        saudi_data = saudi_data[saudi_data['perf_numeric'].notna()]
+
+        if saudi_data.empty:
+            return None, None
+
+        # Determine if lower is better
+        is_time_event = event in ['100m', '200m', '400m', '800m', '1500m', '5000m', '10000m',
+                                   '4x100m', '4x400m', 'Marathon']
+
+        if is_time_event:
+            best_row = saudi_data.loc[saudi_data['perf_numeric'].idxmin()]
+        else:
+            best_row = saudi_data.loc[saudi_data['perf_numeric'].idxmax()]
+
+        athlete_name = f"{best_row.get('firstname', '')} {best_row.get('lastname', '')}".strip()
+        return best_row['perf_numeric'], athlete_name
+
+    def _get_current_world_ranking(self, event, classification, gender):
+        """Get current world ranking position for Saudi athletes"""
+        # Try 2024 first, then 2023
+        for year in ['2024', '2023', '2022']:
+            rankings_key = f'World Rankings_{year}'
+            if rankings_key in self.rankings_data:
+                rankings_df = self.rankings_data[rankings_key]
+                try:
+                    # Filter for classification
+                    class_data = rankings_df[
+                        rankings_df['Class'].str.contains(classification, case=False, na=False)
+                    ]
+
+                    # Find Saudi athletes
+                    saudi_rankings = class_data[
+                        class_data['CountryName'].str.contains('Saudi', case=False, na=False) |
+                        class_data['CountryCode'].str.contains('KSA', case=False, na=False)
+                    ]
+
+                    if not saudi_rankings.empty:
+                        best_rank = saudi_rankings['Rank'].min()
+                        return int(best_rank) if pd.notna(best_rank) else None
+                except Exception:
+                    continue
+
+        return None
+
+    def _calculate_gap(self, saudi_perf, target_perf, is_time_event):
+        """Calculate gap between Saudi performance and target"""
+        if saudi_perf is None or target_perf is None:
+            return None
+
+        if is_time_event:
+            # For time events, negative gap means Saudi is faster (better)
+            return saudi_perf - target_perf
+        else:
+            # For field events, negative gap means Saudi is shorter (worse)
+            return saudi_perf - target_perf
+
+    def _get_year_over_year_trend(self, event, classification, gender, years=3):
+        """Get year-over-year performance trend from rankings"""
+        trends = []
+
+        for year in range(2024, 2024 - years, -1):
+            rankings_key = f'World Rankings_{year}'
+            if rankings_key in self.rankings_data:
+                rankings_df = self.rankings_data[rankings_key]
+                try:
+                    # Filter for classification
+                    class_data = rankings_df[
+                        rankings_df['Class'].str.contains(classification, case=False, na=False)
+                    ]
+
+                    if not class_data.empty:
+                        # Get top performance (rank 1)
+                        top_perf = class_data[class_data['Rank'] == 1]
+                        if not top_perf.empty:
+                            result = top_perf.iloc[0].get('Result', '')
+                            try:
+                                if ':' in str(result):
+                                    parts = str(result).split(':')
+                                    numeric_perf = float(parts[0]) * 60 + float(parts[1]) if len(parts) == 2 else float(parts[-1])
+                                else:
+                                    numeric_perf = float(result)
+                                trends.append({'year': year, 'top_performance': numeric_perf})
+                            except (ValueError, TypeError):
+                                continue
+                except Exception:
+                    continue
+
+        if len(trends) >= 2:
+            # Calculate average yearly improvement
+            trends.sort(key=lambda x: x['year'])
+            improvements = []
+            for i in range(1, len(trends)):
+                diff = trends[i]['top_performance'] - trends[i-1]['top_performance']
+                improvements.append(diff)
+            return sum(improvements) / len(improvements) if improvements else None
+
+        return None
+
     def generate_championship_standards_report(self):
-        """Generate comprehensive report of championship standards with gender separation"""
-        print("\nGenerating Championship Standards Report...")
+        """Generate comprehensive report of championship standards with gender separation and additional analysis"""
+        print("\nGenerating Enhanced Championship Standards Report...")
 
         major_comps = self.identify_major_championships()
         if major_comps is None:
@@ -936,31 +1140,93 @@ class ChampionshipAnalyzer:
                             wc_semi = wc_analysis.get('semifinal_standards', {}).get('worst_semifinal') if wc_analysis else None
                             wc_heat = wc_analysis.get('heat_standards', {}).get('worst_heat') if wc_analysis else None
 
+                            # Get additional data
+                            world_record_numeric, world_record_str = self._get_world_record(event, classification, gender)
+                            asian_gold, asian_bronze, asian_8th = self._get_asian_championship_standards(event, classification, gender)
+                            saudi_best, saudi_athlete = self._get_saudi_best_performance(event, classification, gender)
+                            world_rank = self._get_current_world_ranking(event, classification, gender)
+                            trend = self._get_year_over_year_trend(event, classification, gender)
+
+                            # Determine if time event for gap calculation
+                            is_time_event = event in ['100m', '200m', '400m', '800m', '1500m', '5000m', '10000m',
+                                                       '4x100m', '4x400m', 'Marathon']
+
+                            # Calculate gaps
+                            para_gold_std = para_analysis.get('gold', {}).get('mean') if para_analysis else None
+                            para_bronze_std = para_analysis.get('bronze', {}).get('mean') if para_analysis else None
+                            wc_gold_std = wc_analysis.get('gold', {}).get('mean') if wc_analysis else None
+
+                            gap_to_para_gold = self._calculate_gap(saudi_best, para_gold_std, is_time_event)
+                            gap_to_para_bronze = self._calculate_gap(saudi_best, para_bronze_std, is_time_event)
+                            gap_to_para_8th = self._calculate_gap(saudi_best, para_8th, is_time_event)
+                            gap_to_wr = self._calculate_gap(saudi_best, world_record_numeric, is_time_event)
+
                             report_data.append({
                                 'event': event,
                                 'classification': classification,
                                 'gender': gender,
-                                'paralympics_gold': para_analysis.get('gold', {}).get('mean') if para_analysis else None,
-                                'paralympics_bronze': para_analysis.get('bronze', {}).get('mean') if para_analysis else None,
+                                # World Record
+                                'world_record': world_record_numeric,
+                                'world_record_display': world_record_str,
+                                # Paralympics Standards
+                                'paralympics_gold': para_gold_std,
+                                'paralympics_bronze': para_bronze_std,
                                 'paralympics_8th_place': para_8th,
                                 'paralympics_semi_qualifying': para_semi,
                                 'paralympics_heat_qualifying': para_heat,
-                                'wc_gold': wc_analysis.get('gold', {}).get('mean') if wc_analysis else None,
+                                # World Championships Standards
+                                'wc_gold': wc_gold_std,
                                 'wc_bronze': wc_analysis.get('bronze', {}).get('mean') if wc_analysis else None,
                                 'wc_8th_place': wc_8th,
                                 'wc_semi_qualifying': wc_semi,
                                 'wc_heat_qualifying': wc_heat,
+                                # Asian Championships Standards
+                                'asian_gold': asian_gold,
+                                'asian_bronze': asian_bronze,
+                                'asian_8th_place': asian_8th,
+                                # Saudi Athlete Analysis
+                                'saudi_best': saudi_best,
+                                'saudi_best_athlete': saudi_athlete,
+                                'saudi_world_rank': world_rank,
+                                # Gap Analysis (negative = Saudi is better for time, positive = Saudi is better for field)
+                                'gap_to_para_gold': gap_to_para_gold,
+                                'gap_to_para_bronze': gap_to_para_bronze,
+                                'gap_to_para_8th': gap_to_para_8th,
+                                'gap_to_world_record': gap_to_wr,
+                                # Trend Analysis
+                                'yearly_trend': trend,
                                 'total_results': len(combo_data)
                             })
-        
+
         # Save report
         if report_data:
             report_df = pd.DataFrame(report_data)
+
+            # Reorder columns for better readability
+            column_order = [
+                'event', 'classification', 'gender',
+                'world_record', 'world_record_display',
+                'paralympics_gold', 'paralympics_bronze', 'paralympics_8th_place',
+                'paralympics_semi_qualifying', 'paralympics_heat_qualifying',
+                'wc_gold', 'wc_bronze', 'wc_8th_place', 'wc_semi_qualifying', 'wc_heat_qualifying',
+                'asian_gold', 'asian_bronze', 'asian_8th_place',
+                'saudi_best', 'saudi_best_athlete', 'saudi_world_rank',
+                'gap_to_para_gold', 'gap_to_para_bronze', 'gap_to_para_8th', 'gap_to_world_record',
+                'yearly_trend', 'total_results'
+            ]
+            report_df = report_df[column_order]
+
             report_df.to_csv('championship_standards_report.csv', index=False)
-            print(f"\nSaved championship standards report with {len(report_df)} event/class combinations")
+            print(f"\nSaved enhanced championship standards report with {len(report_df)} event/class combinations")
+            print("\nNew columns added:")
+            print("  - World Record (world_record, world_record_display)")
+            print("  - Asian Championship standards (asian_gold, asian_bronze, asian_8th_place)")
+            print("  - Saudi athlete analysis (saudi_best, saudi_best_athlete, saudi_world_rank)")
+            print("  - Gap analysis (gap_to_para_gold, gap_to_para_bronze, gap_to_para_8th, gap_to_world_record)")
+            print("  - Year-over-year trend (yearly_trend)")
             print("\nSample report data:")
             print(report_df.head())
-        
+
         return report_data
     
     def generate_detailed_top8_report(self):

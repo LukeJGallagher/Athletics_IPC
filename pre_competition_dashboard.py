@@ -305,50 +305,48 @@ if selected_event and selected_classification:
             event_standards = standards_df[filter_mask]
 
             if len(event_standards) > 0:
+                row = event_standards.iloc[0]
                 col1, col2 = st.columns(2)
 
                 with col1:
                     st.markdown("#### World Championships")
-                    wc_data = event_standards[event_standards['competition_type'] == 'World Championships']
-                    if len(wc_data) > 0:
-                        row = wc_data.iloc[0]
+                    # Use actual column names from championship_standards_report.csv
+                    wc_gold = row.get('wc_gold', None)
+                    wc_bronze = row.get('wc_bronze', None)
+                    wc_8th = row.get('wc_8th_place', None)
+                    wc_semi = row.get('wc_semi_qualifying', None)
 
-                        # Medal standards metrics
+                    if pd.notna(wc_gold) or pd.notna(wc_bronze) or pd.notna(wc_8th):
                         m1, m2, m3, m4 = st.columns(4)
                         with m1:
-                            gold_val = row.get('gold_mean', None)
-                            st.metric("🥇 Gold", f"{gold_val:.2f}" if pd.notna(gold_val) else "N/A")
+                            st.metric("Gold", f"{wc_gold:.2f}" if pd.notna(wc_gold) else "N/A")
                         with m2:
-                            silver_val = row.get('silver_mean', None)
-                            st.metric("🥈 Silver", f"{silver_val:.2f}" if pd.notna(silver_val) else "N/A")
+                            st.metric("Bronze", f"{wc_bronze:.2f}" if pd.notna(wc_bronze) else "N/A")
                         with m3:
-                            bronze_val = row.get('bronze_mean', None)
-                            st.metric("🥉 Bronze", f"{bronze_val:.2f}" if pd.notna(bronze_val) else "N/A")
+                            st.metric("8th Place", f"{wc_8th:.2f}" if pd.notna(wc_8th) else "N/A")
                         with m4:
-                            eighth_val = row.get('eighth_mean', None)
-                            st.metric("8th Place", f"{eighth_val:.2f}" if pd.notna(eighth_val) else "N/A")
+                            st.metric("Semi Qual", f"{wc_semi:.2f}" if pd.notna(wc_semi) else "N/A")
                     else:
                         st.info("No World Championships data available")
 
                 with col2:
                     st.markdown("#### Paralympics")
-                    para_data = event_standards[event_standards['competition_type'] == 'Paralympics']
-                    if len(para_data) > 0:
-                        row = para_data.iloc[0]
+                    # Use actual column names from championship_standards_report.csv
+                    para_gold = row.get('paralympics_gold', None)
+                    para_bronze = row.get('paralympics_bronze', None)
+                    para_8th = row.get('paralympics_8th_place', None)
+                    para_semi = row.get('paralympics_semi_qualifying', None)
 
+                    if pd.notna(para_gold) or pd.notna(para_bronze) or pd.notna(para_8th):
                         m1, m2, m3, m4 = st.columns(4)
                         with m1:
-                            gold_val = row.get('gold_mean', None)
-                            st.metric("🥇 Gold", f"{gold_val:.2f}" if pd.notna(gold_val) else "N/A")
+                            st.metric("Gold", f"{para_gold:.2f}" if pd.notna(para_gold) else "N/A")
                         with m2:
-                            silver_val = row.get('silver_mean', None)
-                            st.metric("🥈 Silver", f"{silver_val:.2f}" if pd.notna(silver_val) else "N/A")
+                            st.metric("Bronze", f"{para_bronze:.2f}" if pd.notna(para_bronze) else "N/A")
                         with m3:
-                            bronze_val = row.get('bronze_mean', None)
-                            st.metric("🥉 Bronze", f"{bronze_val:.2f}" if pd.notna(bronze_val) else "N/A")
+                            st.metric("8th Place", f"{para_8th:.2f}" if pd.notna(para_8th) else "N/A")
                         with m4:
-                            eighth_val = row.get('eighth_mean', None)
-                            st.metric("8th Place", f"{eighth_val:.2f}" if pd.notna(eighth_val) else "N/A")
+                            st.metric("Semi Qual", f"{para_semi:.2f}" if pd.notna(para_semi) else "N/A")
                     else:
                         st.info("No Paralympics data available")
 
@@ -357,16 +355,24 @@ if selected_event and selected_classification:
                 st.markdown("#### Medal Standards Comparison")
 
                 chart_data = []
-                for _, row in event_standards.iterrows():
-                    comp_type = row.get('competition_type', 'Unknown')
-                    for medal, col in [('Gold', 'gold_mean'), ('Silver', 'silver_mean'), ('Bronze', 'bronze_mean'), ('8th', 'eighth_mean')]:
-                        val = row.get(col)
-                        if pd.notna(val):
-                            chart_data.append({
-                                'Competition': comp_type,
-                                'Standard': medal,
-                                'Performance': val
-                            })
+                # World Championships data
+                for medal, col in [('Gold', 'wc_gold'), ('Bronze', 'wc_bronze'), ('8th', 'wc_8th_place')]:
+                    val = row.get(col)
+                    if pd.notna(val):
+                        chart_data.append({
+                            'Competition': 'World Championships',
+                            'Standard': medal,
+                            'Performance': val
+                        })
+                # Paralympics data
+                for medal, col in [('Gold', 'paralympics_gold'), ('Bronze', 'paralympics_bronze'), ('8th', 'paralympics_8th_place')]:
+                    val = row.get(col)
+                    if pd.notna(val):
+                        chart_data.append({
+                            'Competition': 'Paralympics',
+                            'Standard': medal,
+                            'Performance': val
+                        })
 
                 if chart_data:
                     chart_df = pd.DataFrame(chart_data)
@@ -378,7 +384,6 @@ if selected_event and selected_classification:
                         barmode='group',
                         color_discrete_map={
                             'Gold': '#FFD700',
-                            'Silver': '#C0C0C0',
                             'Bronze': '#CD7F32',
                             '8th': GRAY_BLUE
                         }
@@ -389,7 +394,7 @@ if selected_event and selected_classification:
                         font=dict(family='Inter, sans-serif', color='#333'),
                         yaxis_title=f"Performance ({get_event_unit(selected_event)})"
                     )
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, width='stretch')
             else:
                 st.warning("No championship standards data for selected event/classification")
         else:
