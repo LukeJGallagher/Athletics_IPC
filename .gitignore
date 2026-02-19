@@ -2,6 +2,12 @@
 .env
 *.env
 .env.local
+scraper_config.json
+
+# Deployment docs (contain connection strings / credentials)
+DEPLOYMENT.md
+DEPLOYMENT_GUIDE.md
+TROUBLESHOOTING_WORKFLOW.md
 
 # Streamlit secrets (CRITICAL - never commit actual secrets)
 .streamlit/secrets.toml
