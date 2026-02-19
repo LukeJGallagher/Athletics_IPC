@@ -12,6 +12,8 @@ import plotly.graph_objects as go
 from datetime import datetime
 from pathlib import Path
 from glob import glob
+from functools import lru_cache
+import base64
 
 # Import Parquet data layer for Azure Blob Storage
 try:
@@ -124,32 +126,94 @@ st.markdown(f"""
     .stProgress > div > div {{
         background-color: {TEAL_PRIMARY};
     }}
+
+    /* Team Saudi Sidebar Styling - Green like banner */
+    [data-testid="stSidebar"] {{
+        background: linear-gradient(180deg, {TEAL_PRIMARY} 0%, {TEAL_DARK} 100%);
+    }}
+    [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p,
+    [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] span,
+    [data-testid="stSidebar"] label,
+    [data-testid="stSidebar"] .stSelectbox label,
+    [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3 {{
+        color: white !important;
+    }}
+    [data-testid="stSidebar"] [data-testid="stAlert"] {{
+        background-color: rgba(255,255,255,0.15);
+        color: white;
+        border: none;
+    }}
+    [data-testid="stSidebar"] [data-testid="stAlert"] p {{
+        color: white !important;
+    }}
 </style>
 """, unsafe_allow_html=True)
 
-# Header
-st.markdown(f"""
-<div style="background: linear-gradient(135deg, {TEAL_PRIMARY} 0%, {TEAL_DARK} 100%);
-            padding: 2rem; border-radius: 8px; margin-bottom: 2rem;">
-    <h1 style="color: white; margin: 0;">🏃‍♂️ Para Athletics Dashboard</h1>
-    <p style="color: rgba(255,255,255,0.9); margin: 0.5rem 0 0 0;">
-        Real-time data from Azure Blob Storage (Parquet)
-    </p>
-</div>
-""", unsafe_allow_html=True)
+# Helper function to encode images to base64
+def get_image_base64(image_path):
+    """Encode image to base64 for embedding in HTML"""
+    try:
+        with open(image_path, "rb") as img_file:
+            return base64.b64encode(img_file.read()).decode()
+    except:
+        return None
 
-# Team Saudi logo in sidebar
-logo_path = Path("assets/TS-Logos_Horizontal.svg")
+# Theme paths
+theme_dir = Path(r"C:\Users\l.gallagher\OneDrive - Team Saudi\Documents\Performance Analysis\Theme")
+banner_path = theme_dir / "team_saudi_banner.jpg"
+logo_path = theme_dir / "team_saudi_logo.jpg"
 saudi_logo_path = Path("Saudilogo.png")
 
-# Display Saudi logo if available
-if saudi_logo_path.exists():
-    st.sidebar.image(str(saudi_logo_path), width='stretch')
+# Header with Banner Image
+banner_b64 = get_image_base64(banner_path) if banner_path.exists() else None
 
-# Display Team Saudi horizontal logo
-if logo_path.exists():
-    st.sidebar.image(str(logo_path), width='stretch')
-elif not saudi_logo_path.exists():
+if banner_b64:
+    st.markdown(f'''
+    <div style="position: relative; border-radius: 12px; overflow: hidden; margin-bottom: 1.5rem;
+         box-shadow: 0 8px 25px rgba(0, 113, 103, 0.25);">
+        <img src="data:image/jpeg;base64,{banner_b64}" style="width: 100%; height: 180px; object-fit: cover; filter: brightness(0.7);">
+        <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center;">
+            <div style="text-align: center;">
+                <h1 style="color: white; font-size: 2.2rem; margin: 0; text-shadow: 2px 2px 4px rgba(0,0,0,0.5);">
+                    Para Athletics Dashboard
+                </h1>
+                <p style="color: {GOLD_ACCENT}; font-size: 1.1rem; margin: 0.5rem 0 0 0; text-shadow: 1px 1px 2px rgba(0,0,0,0.5);">
+                    Real-time Championship Analysis & Performance Tracking
+                </p>
+            </div>
+        </div>
+        <div style="position: absolute; bottom: 0; left: 0; right: 0; height: 4px; background: linear-gradient(90deg, {TEAL_PRIMARY} 0%, {GOLD_ACCENT} 50%, {TEAL_DARK} 100%);"></div>
+    </div>
+    ''', unsafe_allow_html=True)
+else:
+    # Fallback header without banner image
+    st.markdown(f"""
+    <div style="background: linear-gradient(135deg, {TEAL_PRIMARY} 0%, {TEAL_DARK} 100%);
+                padding: 2rem; border-radius: 8px; margin-bottom: 2rem;">
+        <h1 style="color: white; margin: 0;">Para Athletics Dashboard</h1>
+        <p style="color: rgba(255,255,255,0.9); margin: 0.5rem 0 0 0;">
+            Real-time data from Azure Blob Storage (Parquet)
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+
+# Sidebar Logo
+logo_b64 = get_image_base64(logo_path) if logo_path.exists() else None
+saudi_logo_b64 = get_image_base64(saudi_logo_path) if saudi_logo_path.exists() else None
+
+if logo_b64:
+    st.sidebar.markdown(f'''
+    <div style="text-align: center; padding: 1rem 0; margin-bottom: 1rem;">
+        <img src="data:image/jpeg;base64,{logo_b64}" style="width: 180px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
+    </div>
+    ''', unsafe_allow_html=True)
+elif saudi_logo_b64:
+    st.sidebar.markdown(f'''
+    <div style="text-align: center; padding: 1rem 0; margin-bottom: 1rem;">
+        <img src="data:image/png;base64,{saudi_logo_b64}" style="width: 180px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
+    </div>
+    ''', unsafe_allow_html=True)
+else:
     st.sidebar.markdown(f"""
     <div style="background: linear-gradient(135deg, {TEAL_PRIMARY} 0%, {TEAL_DARK} 100%);
                 padding: 1rem; border-radius: 8px; text-align: center; margin-bottom: 1rem;">
@@ -376,9 +440,10 @@ def get_major_championships(results_df):
 
     return major_df
 
+@lru_cache(maxsize=50000)
 def parse_performance(perf_str):
-    """Parse performance string to float value"""
-    if pd.isna(perf_str) or perf_str == '':
+    """Parse performance string to float value - cached for speed"""
+    if perf_str is None or perf_str == '' or (isinstance(perf_str, float) and np.isnan(perf_str)):
         return np.nan
 
     perf_str = str(perf_str).strip()
@@ -406,6 +471,24 @@ def parse_performance(perf_str):
         return float(perf_str)
     except:
         return np.nan
+
+@st.cache_data(ttl=600)
+def precompute_performance_values(df):
+    """Pre-compute performance values for entire dataframe - cached"""
+    if df.empty or 'performance' not in df.columns:
+        return df
+    result = df.copy()
+    result['perf_value'] = result['performance'].apply(parse_performance)
+    return result
+
+def ensure_perf_value(df):
+    """Ensure dataframe has perf_value column - avoids redundant computation"""
+    if df.empty:
+        return df
+    if 'perf_value' not in df.columns and 'performance' in df.columns:
+        df = df.copy()
+        df['perf_value'] = df['performance'].apply(parse_performance)
+    return df
 
 def is_track_event(event_name):
     """Check if event is track (lower is better) or field (higher is better)"""
@@ -461,11 +544,10 @@ def analyze_championship_standards(major_df, event_filter=None, classification_f
 
     return pd.DataFrame(standards)
 
-# Load data
-with st.spinner("Loading data..."):
-    results_df = load_results()
-    rankings_df = load_rankings()
-    records_df = load_records()
+# Load data (cached - subsequent loads are fast)
+results_df = load_results()
+rankings_df = load_rankings()
+records_df = load_records()
 
 # Overview metrics
 st.markdown("### 📊 Database Overview")
@@ -482,7 +564,7 @@ with col4:
     st.metric("Unique Athletes", f"{unique_athletes:,}")
 
 # Tabs
-tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["🏃 Results", "📈 Rankings", "🏆 Records", "🇸🇦 Saudi Arabia", "📊 Championship Analysis", "👤 Athlete Analysis"])
+tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs(["🏃 Results", "📈 Rankings", "🏆 Records", "🇸🇦 Saudi Arabia", "📊 Championship Analysis", "👤 Athlete Analysis", "📄 Event Reports"])
 
 with tab1:
     st.markdown("### Competition Results")
@@ -593,48 +675,43 @@ with tab2:
         st.info("No rankings data available. Check data/Rankings/ folder or run scrapers.")
 
 with tab3:
-    st.markdown("### World & Regional Records")
+    st.markdown(f"""
+    <div style="background: linear-gradient(135deg, {TEAL_PRIMARY} 0%, {TEAL_DARK} 100%); padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+        <h2 style="color: white; margin: 0;">🏆 World Records</h2>
+        <p style="color: rgba(255,255,255,0.9); margin: 0.5rem 0 0 0;">Current IPC World Records by Event and Classification</p>
+    </div>
+    """, unsafe_allow_html=True)
 
     if len(records_df) > 0:
+        # Filter to World Records only
+        if 'record_type' in records_df.columns:
+            world_records = records_df[records_df['record_type'] == 'World Record'].copy()
+        else:
+            world_records = records_df.copy()
+
         # Determine event column name
-        event_col = 'Event' if 'Event' in records_df.columns else 'event' if 'event' in records_df.columns else 'event_name'
+        event_col = 'Event' if 'Event' in world_records.columns else 'event' if 'event' in world_records.columns else 'event_name'
 
-        # Filters row
-        col1, col2 = st.columns(2)
+        # Event filter only
+        if event_col in world_records.columns:
+            events = ['All Events'] + sorted(world_records[event_col].dropna().unique().tolist())
+            selected_event = st.selectbox("Filter by Event", events, key="records_event")
+        else:
+            selected_event = 'All Events'
 
-        with col1:
-            # Record type filter
-            if 'record_type' in records_df.columns:
-                record_types = ['All'] + sorted(records_df['record_type'].dropna().unique().tolist())
-                selected_record_type = st.selectbox("Filter by Record Type", record_types, key="records_type")
-            else:
-                selected_record_type = 'All'
-
-        with col2:
-            # Event filter
-            if event_col in records_df.columns:
-                events = ['All'] + sorted(records_df[event_col].dropna().unique().tolist())
-                selected_event = st.selectbox("Filter by Event", events, key="records_event")
-            else:
-                selected_event = 'All'
-
-        # Apply filters
-        filtered_records = records_df.copy()
-        if selected_record_type != 'All' and 'record_type' in filtered_records.columns:
-            filtered_records = filtered_records[filtered_records['record_type'] == selected_record_type]
-        if selected_event != 'All' and event_col in filtered_records.columns:
-            filtered_records = filtered_records[filtered_records[event_col] == selected_event]
+        # Apply filter
+        if selected_event != 'All Events' and event_col in world_records.columns:
+            filtered_records = world_records[world_records[event_col] == selected_event]
+        else:
+            filtered_records = world_records
 
         # Show metrics
-        col1, col2, col3 = st.columns(3)
+        col1, col2 = st.columns(2)
         with col1:
-            st.metric("Records Shown", f"{len(filtered_records):,}")
+            st.metric("World Records", f"{len(filtered_records):,}")
         with col2:
             if event_col in filtered_records.columns:
                 st.metric("Events", filtered_records[event_col].nunique())
-        with col3:
-            if 'record_type' in records_df.columns:
-                st.metric("Record Types", filtered_records['record_type'].nunique() if len(filtered_records) > 0 else 0)
 
         # Display table
         st.dataframe(
@@ -646,9 +723,9 @@ with tab3:
         # Download button
         csv = filtered_records.to_csv(index=False)
         st.download_button(
-            label="Download Filtered Records",
+            label="Download World Records",
             data=csv,
-            file_name="filtered_records.csv",
+            file_name="world_records.csv",
             mime="text/csv",
             key="records_download"
         )
@@ -1260,55 +1337,61 @@ with tab5:
             st.markdown("#### Championships Comparison")
 
             if not filtered_df.empty:
-                # Compare Paralympics vs World Championships vs Asian
-                compare_df = filtered_df[['event', 'classification', 'gender',
-                                         'paralympics_gold', 'wc_gold', 'asian_gold']].dropna(subset=['paralympics_gold', 'wc_gold'])
+                # Compare Paralympics vs World Championships vs Asian - Grid Layout
+                available_cols = ['event', 'classification', 'gender']
+                for col in ['paralympics_gold', 'paralympics_bronze', 'wc_gold', 'wc_bronze', 'asian_gold', 'asian_bronze']:
+                    if col in filtered_df.columns:
+                        available_cols.append(col)
+
+                compare_df = filtered_df[available_cols].head(20)
 
                 if not compare_df.empty:
-                    compare_df['event_class'] = compare_df['event'] + ' ' + compare_df['classification']
+                    compare_df['Event'] = compare_df['event'] + ' ' + compare_df['classification']
 
-                    fig = go.Figure()
-                    fig.add_trace(go.Bar(name='Paralympics Gold', x=compare_df['event_class'], y=compare_df['paralympics_gold'], marker_color=TEAL_PRIMARY))
-                    fig.add_trace(go.Bar(name='World Champs Gold', x=compare_df['event_class'], y=compare_df['wc_gold'], marker_color=GOLD_ACCENT))
-                    if 'asian_gold' in compare_df.columns:
-                        fig.add_trace(go.Bar(name='Asian Gold', x=compare_df['event_class'], y=compare_df['asian_gold'], marker_color=TEAL_LIGHT))
+                    # Create comparison metrics grid - 3 columns
+                    col1, col2, col3 = st.columns(3)
 
-                    fig.update_layout(
-                        title='Gold Medal Standards by Championship',
-                        barmode='group',
-                        xaxis_tickangle=-45,
-                        plot_bgcolor='white',
-                        paper_bgcolor='white',
-                        font=dict(family='Inter, sans-serif', color='#333'),
-                        height=500
-                    )
-                    st.plotly_chart(fig, width='stretch')
+                    with col1:
+                        st.markdown(f"""
+                        <div style="background: {TEAL_PRIMARY}; padding: 0.75rem; border-radius: 8px; text-align: center; margin-bottom: 0.5rem;">
+                            <p style="color: white; margin: 0; font-weight: bold;">Paralympics</p>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        para_cols = ['Event'] + [c for c in ['paralympics_gold', 'paralympics_bronze'] if c in compare_df.columns]
+                        para_data = compare_df[para_cols].dropna(subset=[c for c in para_cols if c != 'Event'])
+                        para_data.columns = ['Event'] + ['Gold' if 'gold' in c else 'Bronze' for c in para_cols[1:]]
+                        if len(para_data) > 0:
+                            st.dataframe(para_data, width='stretch', hide_index=True, height=350)
+                        else:
+                            st.info("No data")
 
-                # Year-over-year trend
-                if 'yearly_trend' in filtered_df.columns:
-                    st.markdown("#### Performance Trends (Year-over-Year)")
-                    trend_df = filtered_df[filtered_df['yearly_trend'].notna()][['event', 'classification', 'gender', 'yearly_trend']]
+                    with col2:
+                        st.markdown(f"""
+                        <div style="background: {GOLD_ACCENT}; padding: 0.75rem; border-radius: 8px; text-align: center; margin-bottom: 0.5rem;">
+                            <p style="color: white; margin: 0; font-weight: bold;">World Championships</p>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        wc_cols = ['Event'] + [c for c in ['wc_gold', 'wc_bronze'] if c in compare_df.columns]
+                        wc_data = compare_df[wc_cols].dropna(subset=[c for c in wc_cols if c != 'Event'])
+                        wc_data.columns = ['Event'] + ['Gold' if 'gold' in c else 'Bronze' for c in wc_cols[1:]]
+                        if len(wc_data) > 0:
+                            st.dataframe(wc_data, width='stretch', hide_index=True, height=350)
+                        else:
+                            st.info("No data")
 
-                    if not trend_df.empty:
-                        trend_df['event_class'] = trend_df['event'] + ' ' + trend_df['classification']
-                        trend_df = trend_df.sort_values('yearly_trend')
-
-                        fig = px.bar(
-                            trend_df,
-                            x='event_class',
-                            y='yearly_trend',
-                            color='yearly_trend',
-                            color_continuous_scale=['green', 'yellow', 'red'],
-                            labels={'yearly_trend': 'Yearly Change', 'event_class': 'Event'}
-                        )
-                        fig.update_layout(
-                            title='Performance Improvement Rate (negative = getting faster)',
-                            xaxis_tickangle=-45,
-                            plot_bgcolor='white',
-                            paper_bgcolor='white',
-                            font=dict(family='Inter, sans-serif', color='#333')
-                        )
-                        st.plotly_chart(fig, width='stretch')
+                    with col3:
+                        st.markdown(f"""
+                        <div style="background: {TEAL_LIGHT}; padding: 0.75rem; border-radius: 8px; text-align: center; margin-bottom: 0.5rem;">
+                            <p style="color: white; margin: 0; font-weight: bold;">Asian Championships</p>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        asian_cols = ['Event'] + [c for c in ['asian_gold', 'asian_bronze'] if c in compare_df.columns]
+                        asian_data = compare_df[asian_cols].dropna(subset=[c for c in asian_cols if c != 'Event'])
+                        asian_data.columns = ['Event'] + ['Gold' if 'gold' in c else 'Bronze' for c in asian_cols[1:]]
+                        if len(asian_data) > 0:
+                            st.dataframe(asian_data, width='stretch', hide_index=True, height=350)
+                        else:
+                            st.info("No data")
 
         with subtab4:
             st.markdown("#### Medal Target Calculator")
@@ -1592,6 +1675,531 @@ with tab6:
                 width='stretch',
                 hide_index=True
             )
+    else:
+        st.info("No results data available yet. Run the GitHub workflow to populate.")
+
+# Tab 7: Event Reports (Pre-Competition Analysis)
+with tab7:
+    st.markdown(f"""
+    <div style="background: linear-gradient(135deg, {TEAL_PRIMARY} 0%, {TEAL_DARK} 100%); padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+        <h2 style="color: white; margin: 0;">Event Reports</h2>
+        <p style="color: rgba(255,255,255,0.9); margin: 0.5rem 0 0 0;">Pre-Competition Championship Analysis - Similar to PDF Reports</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    if len(results_df) > 0:
+        # Event selection filters - simplified
+        col1, col2, col3 = st.columns(3)
+
+        with col1:
+            # Get unique events
+            report_events = sorted(results_df['event_name'].dropna().unique().tolist())
+            selected_report_event = st.selectbox("Select Event", ['-- Select Event --'] + report_events, key="tab7_event")
+
+        with col2:
+            # Get classifications for selected event
+            if selected_report_event and selected_report_event != '-- Select Event --':
+                event_data = results_df[results_df['event_name'] == selected_report_event]
+                if 'classification' in event_data.columns:
+                    report_classes = sorted(event_data['classification'].dropna().unique().tolist())
+                else:
+                    report_classes = []
+            else:
+                report_classes = []
+
+            selected_report_class = st.selectbox("Select Classification", ['-- Select Class --'] + report_classes, key="tab7_class")
+
+        with col3:
+            selected_report_gender = st.selectbox("Select Gender", ['-- Select Gender --', 'M', 'W'], key="tab7_gender",
+                                                   format_func=lambda x: {'-- Select Gender --': 'Select Gender...', 'M': 'Men', 'W': 'Women'}.get(x, x))
+
+        # Check if all filters are selected
+        filters_complete = (selected_report_event and selected_report_event != '-- Select Event --' and
+                           selected_report_class and selected_report_class != '-- Select Class --' and
+                           selected_report_gender and selected_report_gender != '-- Select Gender --')
+
+        if filters_complete:
+            gender_name = "Men" if selected_report_gender == 'M' else "Women"
+
+            st.markdown(f"""
+            <div style="background: linear-gradient(135deg, {GOLD_ACCENT} 0%, #c9a227 100%); padding: 1rem; border-radius: 8px; margin: 1rem 0; text-align: center;">
+                <h3 style="color: white; margin: 0; text-shadow: 1px 1px 2px rgba(0,0,0,0.3);">{selected_report_event} {selected_report_class} - {gender_name}</h3>
+            </div>
+            """, unsafe_allow_html=True)
+
+            # Create report sections as expandable panels
+            report_tab1, report_tab2, report_tab3, report_tab4, report_tab5 = st.tabs([
+                "🏅 Championship Standards",
+                "👥 Competition Field",
+                "📊 Historical Data",
+                "📈 Performance Analysis",
+                "🇸🇦 Saudi Context"
+            ])
+
+            # Filter data for this event-class-gender (exact match, no regex)
+            event_filter = results_df['event_name'] == selected_report_event
+            class_filter = results_df['classification'] == selected_report_class if 'classification' in results_df.columns else pd.Series([True] * len(results_df))
+
+            # Gender filter - check multiple possible gender columns/formats
+            gender_filter = pd.Series([True] * len(results_df))
+            if 'gender' in results_df.columns:
+                gender_filter = results_df['gender'] == selected_report_gender
+            elif 'sex' in results_df.columns:
+                gender_filter = results_df['sex'] == selected_report_gender
+
+            filtered_event_df = results_df[event_filter & class_filter & gender_filter].copy()
+            major_event_df = get_major_championships(filtered_event_df)
+
+            # Section 1: Championship Standards
+            with report_tab1:
+                st.markdown(f"""
+                <div style="background: linear-gradient(135deg, {TEAL_PRIMARY} 0%, {TEAL_DARK} 100%);
+                     padding: 1rem; border-radius: 8px; margin-bottom: 1rem; border-left: 4px solid {GOLD_ACCENT};">
+                    <h3 style="color: white; margin: 0;">Championship Medal Standards</h3>
+                    <p style="color: rgba(255,255,255,0.9); margin: 0.5rem 0 0 0;">World Championships vs Paralympics Comparison</p>
+                </div>
+                """, unsafe_allow_html=True)
+
+                col1, col2 = st.columns(2)
+
+                # World Championships Standards
+                with col1:
+                    st.markdown("#### World Championships")
+                    wc_df = major_event_df[major_event_df['competition_name'].str.contains('World Championships|World Champ', case=False, na=False)].copy()
+
+                    if len(wc_df) > 0:
+                        wc_df['perf_value'] = wc_df['performance'].apply(parse_performance)
+                        wc_df = wc_df.dropna(subset=['perf_value'])
+
+                        is_track = is_track_event(selected_report_event)
+                        wc_df = wc_df.sort_values('perf_value', ascending=is_track)
+
+                        # Get medal standards
+                        wc_standards = []
+                        if len(wc_df) >= 1:
+                            wc_standards.append({"Position": "Gold (1st)", "Performance": wc_df.iloc[0]['performance'], "Athlete": wc_df.iloc[0]['athlete_name']})
+                        if len(wc_df) >= 2:
+                            wc_standards.append({"Position": "Silver (2nd)", "Performance": wc_df.iloc[1]['performance'], "Athlete": wc_df.iloc[1]['athlete_name']})
+                        if len(wc_df) >= 3:
+                            wc_standards.append({"Position": "Bronze (3rd)", "Performance": wc_df.iloc[2]['performance'], "Athlete": wc_df.iloc[2]['athlete_name']})
+                        if len(wc_df) >= 8:
+                            wc_standards.append({"Position": "8th Place", "Performance": wc_df.iloc[7]['performance'], "Athlete": wc_df.iloc[7]['athlete_name']})
+
+                        if wc_standards:
+                            wc_standards_df = pd.DataFrame(wc_standards)
+                            st.dataframe(wc_standards_df, width='stretch', hide_index=True)
+                        else:
+                            st.info("Insufficient World Championships data")
+                    else:
+                        st.info("No World Championships data available for this event")
+
+                # Paralympics Standards
+                with col2:
+                    st.markdown("#### Paralympics")
+                    para_df = major_event_df[major_event_df['competition_name'].str.contains('Paralympic|Paralympics', case=False, na=False)].copy()
+
+                    if len(para_df) > 0:
+                        para_df['perf_value'] = para_df['performance'].apply(parse_performance)
+                        para_df = para_df.dropna(subset=['perf_value'])
+
+                        is_track = is_track_event(selected_report_event)
+                        para_df = para_df.sort_values('perf_value', ascending=is_track)
+
+                        # Get medal standards
+                        para_standards = []
+                        if len(para_df) >= 1:
+                            para_standards.append({"Position": "Gold (1st)", "Performance": para_df.iloc[0]['performance'], "Athlete": para_df.iloc[0]['athlete_name']})
+                        if len(para_df) >= 2:
+                            para_standards.append({"Position": "Silver (2nd)", "Performance": para_df.iloc[1]['performance'], "Athlete": para_df.iloc[1]['athlete_name']})
+                        if len(para_df) >= 3:
+                            para_standards.append({"Position": "Bronze (3rd)", "Performance": para_df.iloc[2]['performance'], "Athlete": para_df.iloc[2]['athlete_name']})
+                        if len(para_df) >= 8:
+                            para_standards.append({"Position": "8th Place", "Performance": para_df.iloc[7]['performance'], "Athlete": para_df.iloc[7]['athlete_name']})
+
+                        if para_standards:
+                            para_standards_df = pd.DataFrame(para_standards)
+                            st.dataframe(para_standards_df, width='stretch', hide_index=True)
+                        else:
+                            st.info("Insufficient Paralympics data")
+                    else:
+                        st.info("No Paralympics data available for this event")
+
+                # Medal Standards Comparison Chart
+                st.markdown("#### Medal Standards Comparison")
+
+                comparison_data = []
+
+                # WC data
+                if len(wc_df) > 0:
+                    wc_df_sorted = wc_df.sort_values('perf_value', ascending=is_track_event(selected_report_event))
+                    if len(wc_df_sorted) >= 1:
+                        comparison_data.append({"Competition": "World Championships", "Medal": "Gold", "Performance": wc_df_sorted.iloc[0]['perf_value']})
+                    if len(wc_df_sorted) >= 3:
+                        comparison_data.append({"Competition": "World Championships", "Medal": "Bronze", "Performance": wc_df_sorted.iloc[2]['perf_value']})
+
+                # Paralympics data
+                if len(para_df) > 0:
+                    para_df_sorted = para_df.sort_values('perf_value', ascending=is_track_event(selected_report_event))
+                    if len(para_df_sorted) >= 1:
+                        comparison_data.append({"Competition": "Paralympics", "Medal": "Gold", "Performance": para_df_sorted.iloc[0]['perf_value']})
+                    if len(para_df_sorted) >= 3:
+                        comparison_data.append({"Competition": "Paralympics", "Medal": "Bronze", "Performance": para_df_sorted.iloc[2]['perf_value']})
+
+                if comparison_data:
+                    comp_df = pd.DataFrame(comparison_data)
+                    fig = px.bar(comp_df, x='Competition', y='Performance', color='Medal',
+                                barmode='group',
+                                color_discrete_map={'Gold': '#FFD700', 'Bronze': '#CD7F32'})
+                    fig.update_layout(
+                        plot_bgcolor='white',
+                        paper_bgcolor='white',
+                        font=dict(family='Inter, sans-serif', color='#333'),
+                        height=350
+                    )
+                    st.plotly_chart(fig, width='stretch')
+
+            # Section 2: Competition Field
+            with report_tab2:
+                st.markdown(f"""
+                <div style="background: linear-gradient(135deg, {TEAL_PRIMARY} 0%, {TEAL_DARK} 100%);
+                     padding: 1rem; border-radius: 8px; margin-bottom: 1rem; border-left: 4px solid {GOLD_ACCENT};">
+                    <h3 style="color: white; margin: 0;">Competition Field Analysis</h3>
+                    <p style="color: rgba(255,255,255,0.9); margin: 0.5rem 0 0 0;">Top athletes and their best performances</p>
+                </div>
+                """, unsafe_allow_html=True)
+
+                if len(filtered_event_df) > 0:
+                    # Get top performers
+                    filtered_event_df['perf_value'] = filtered_event_df['performance'].apply(parse_performance)
+                    clean_df = filtered_event_df.dropna(subset=['perf_value'])
+
+                    is_track = is_track_event(selected_report_event)
+
+                    # Group by athlete and get best performance
+                    athlete_bests = clean_df.groupby('athlete_name').agg({
+                        'performance': 'first',
+                        'perf_value': 'min' if is_track else 'max',
+                        'nationality': 'first',
+                        'competition_name': 'count',
+                        'date': 'max'
+                    }).reset_index()
+                    athlete_bests.columns = ['Athlete', 'Best Performance', 'Performance Value', 'Country', 'Total Results', 'Last Competed']
+                    athlete_bests = athlete_bests.sort_values('Performance Value', ascending=is_track).head(20)
+
+                    st.markdown("#### Top 20 Athletes - All Time")
+                    st.dataframe(
+                        athlete_bests[['Athlete', 'Best Performance', 'Country', 'Total Results']],
+                        width='stretch',
+                        hide_index=True
+                    )
+
+                    # Performance distribution chart
+                    st.markdown("#### Performance Distribution")
+                    fig = px.histogram(clean_df, x='perf_value', nbins=30,
+                                      labels={'perf_value': 'Performance'})
+                    fig.update_traces(marker_color=TEAL_PRIMARY)
+                    fig.update_layout(
+                        plot_bgcolor='white',
+                        paper_bgcolor='white',
+                        font=dict(family='Inter, sans-serif', color='#333'),
+                        height=300,
+                        showlegend=False
+                    )
+                    st.plotly_chart(fig, width='stretch')
+
+                    # Country breakdown
+                    st.markdown("#### Athletes by Country")
+                    country_counts = clean_df.groupby('nationality')['athlete_name'].nunique().sort_values(ascending=False).head(15)
+                    fig = px.bar(x=country_counts.values, y=country_counts.index, orientation='h',
+                                labels={'x': 'Number of Athletes', 'y': 'Country'})
+                    fig.update_traces(marker_color=TEAL_PRIMARY)
+                    fig.update_layout(
+                        plot_bgcolor='white',
+                        paper_bgcolor='white',
+                        font=dict(family='Inter, sans-serif', color='#333'),
+                        height=400
+                    )
+                    st.plotly_chart(fig, width='stretch')
+                else:
+                    st.info("No data available for this event combination")
+
+            # Section 3: Historical Championship Data
+            with report_tab3:
+                st.markdown(f"""
+                <div style="background: linear-gradient(135deg, {TEAL_PRIMARY} 0%, {TEAL_DARK} 100%);
+                     padding: 1rem; border-radius: 8px; margin-bottom: 1rem; border-left: 4px solid {GOLD_ACCENT};">
+                    <h3 style="color: white; margin: 0;">Historical Championship Data</h3>
+                    <p style="color: rgba(255,255,255,0.9); margin: 0.5rem 0 0 0;">Performance trends across major championships</p>
+                </div>
+                """, unsafe_allow_html=True)
+
+                if len(major_event_df) > 0:
+                    # Championship results table
+                    st.markdown("#### Major Championship Results")
+
+                    major_event_df = major_event_df.copy()
+                    major_event_df['perf_value'] = major_event_df['performance'].apply(parse_performance)
+                    major_clean = major_event_df.dropna(subset=['perf_value'])
+
+                    is_track = is_track_event(selected_report_event)
+                    major_clean = major_clean.sort_values('perf_value', ascending=is_track)
+
+                    display_cols = ['competition_name', 'athlete_name', 'nationality', 'performance', 'date']
+                    available_cols = [c for c in display_cols if c in major_clean.columns]
+
+                    st.dataframe(
+                        major_clean[available_cols].head(50),
+                        width='stretch',
+                        hide_index=True
+                    )
+
+                    # Performance trends by year - improved visualization
+                    st.markdown("#### Performance Trends by Year")
+                    if 'date' in major_clean.columns:
+                        major_clean['year'] = pd.to_datetime(major_clean['date'], errors='coerce').dt.year
+                        yearly_stats = major_clean.groupby('year').agg({
+                            'perf_value': ['min' if is_track else 'max', 'mean', 'count']
+                        }).reset_index()
+                        yearly_stats.columns = ['Year', 'Best', 'Average', 'Count']
+                        yearly_stats = yearly_stats.dropna()
+                        yearly_stats = yearly_stats.sort_values('Year')
+
+                        if len(yearly_stats) > 1:
+                            # Summary metrics
+                            first_year = yearly_stats.iloc[0]
+                            last_year = yearly_stats.iloc[-1]
+                            improvement = first_year['Best'] - last_year['Best'] if is_track else last_year['Best'] - first_year['Best']
+
+                            col1, col2, col3 = st.columns(3)
+                            with col1:
+                                st.metric("First Year Best", f"{first_year['Best']:.2f}", f"{int(first_year['Year'])}")
+                            with col2:
+                                st.metric("Latest Year Best", f"{last_year['Best']:.2f}", f"{int(last_year['Year'])}")
+                            with col3:
+                                delta_label = "improvement" if improvement > 0 else "slower"
+                                st.metric("Change", f"{abs(improvement):.2f}", delta_label)
+
+                            # Area chart showing trend
+                            fig = go.Figure()
+                            fig.add_trace(go.Scatter(
+                                x=yearly_stats['Year'], y=yearly_stats['Best'],
+                                mode='lines+markers+text',
+                                name='Best Performance',
+                                fill='tozeroy',
+                                fillcolor=f'rgba(0, 113, 103, 0.2)',
+                                line=dict(color=TEAL_PRIMARY, width=3),
+                                marker=dict(size=10, color=GOLD_ACCENT),
+                                text=[f"{v:.2f}" for v in yearly_stats['Best']],
+                                textposition='top center'
+                            ))
+                            fig.update_layout(
+                                plot_bgcolor='white',
+                                paper_bgcolor='white',
+                                font=dict(family='Inter, sans-serif', color='#333'),
+                                height=300,
+                                xaxis_title='Year',
+                                yaxis_title='Performance',
+                                showlegend=False,
+                                margin=dict(t=20, b=40)
+                            )
+                            fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='lightgray', dtick=1)
+                            fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='lightgray')
+                            st.plotly_chart(fig, width='stretch')
+
+                            # Data table
+                            st.dataframe(yearly_stats, width='stretch', hide_index=True)
+                else:
+                    st.info("No major championship data available for this event")
+
+            # Section 4: Performance Analysis
+            with report_tab4:
+                st.markdown(f"""
+                <div style="background: linear-gradient(135deg, {TEAL_PRIMARY} 0%, {TEAL_DARK} 100%);
+                     padding: 1rem; border-radius: 8px; margin-bottom: 1rem; border-left: 4px solid {GOLD_ACCENT};">
+                    <h3 style="color: white; margin: 0;">Performance Analysis</h3>
+                    <p style="color: rgba(255,255,255,0.9); margin: 0.5rem 0 0 0;">Statistical breakdown and benchmarks</p>
+                </div>
+                """, unsafe_allow_html=True)
+
+                if len(filtered_event_df) > 0:
+                    filtered_event_df['perf_value'] = filtered_event_df['performance'].apply(parse_performance)
+                    clean_df = filtered_event_df.dropna(subset=['perf_value'])
+
+                    is_track = is_track_event(selected_report_event)
+
+                    # Statistical summary
+                    col1, col2, col3, col4 = st.columns(4)
+
+                    with col1:
+                        best_val = clean_df['perf_value'].min() if is_track else clean_df['perf_value'].max()
+                        st.markdown(f"""
+                        <div style="background: {TEAL_PRIMARY}; padding: 1rem; border-radius: 8px; text-align: center;">
+                            <p style="color: rgba(255,255,255,0.8); margin: 0; font-size: 0.85rem;">Best Performance</p>
+                            <p style="color: white; margin: 0.25rem 0 0 0; font-size: 1.5rem; font-weight: bold;">{best_val:.2f}</p>
+                        </div>
+                        """, unsafe_allow_html=True)
+
+                    with col2:
+                        avg_val = clean_df['perf_value'].mean()
+                        st.markdown(f"""
+                        <div style="background: {TEAL_LIGHT}; padding: 1rem; border-radius: 8px; text-align: center;">
+                            <p style="color: rgba(255,255,255,0.8); margin: 0; font-size: 0.85rem;">Average</p>
+                            <p style="color: white; margin: 0.25rem 0 0 0; font-size: 1.5rem; font-weight: bold;">{avg_val:.2f}</p>
+                        </div>
+                        """, unsafe_allow_html=True)
+
+                    with col3:
+                        std_val = clean_df['perf_value'].std()
+                        st.markdown(f"""
+                        <div style="background: {GRAY_BLUE}; padding: 1rem; border-radius: 8px; text-align: center;">
+                            <p style="color: rgba(255,255,255,0.8); margin: 0; font-size: 0.85rem;">Std Deviation</p>
+                            <p style="color: white; margin: 0.25rem 0 0 0; font-size: 1.5rem; font-weight: bold;">{std_val:.2f}</p>
+                        </div>
+                        """, unsafe_allow_html=True)
+
+                    with col4:
+                        total_results = len(clean_df)
+                        st.markdown(f"""
+                        <div style="background: {GOLD_ACCENT}; padding: 1rem; border-radius: 8px; text-align: center;">
+                            <p style="color: rgba(255,255,255,0.8); margin: 0; font-size: 0.85rem;">Total Results</p>
+                            <p style="color: white; margin: 0.25rem 0 0 0; font-size: 1.5rem; font-weight: bold;">{total_results:,}</p>
+                        </div>
+                        """, unsafe_allow_html=True)
+
+                    st.markdown("<br>", unsafe_allow_html=True)
+
+                    # Percentile breakdown
+                    st.markdown("#### Performance Percentiles")
+                    percentiles = [10, 25, 50, 75, 90, 95, 99]
+                    perc_values = np.percentile(clean_df['perf_value'], percentiles)
+                    perc_df = pd.DataFrame({
+                        'Percentile': [f'{p}th' for p in percentiles],
+                        'Performance': [f'{v:.2f}' for v in perc_values],
+                        'Description': ['Elite', 'Very Good', 'Median', 'Above Average', 'Good', 'Competitive', 'Top Level']
+                    })
+                    st.dataframe(perc_df, width='stretch', hide_index=True)
+
+                    # Box plot
+                    st.markdown("#### Performance Distribution")
+                    fig = px.box(clean_df, y='perf_value', points='outliers',
+                                labels={'perf_value': 'Performance'})
+                    fig.update_traces(marker_color=TEAL_PRIMARY, line_color=TEAL_DARK)
+                    fig.update_layout(
+                        plot_bgcolor='white',
+                        paper_bgcolor='white',
+                        font=dict(family='Inter, sans-serif', color='#333'),
+                        height=300
+                    )
+                    st.plotly_chart(fig, width='stretch')
+                else:
+                    st.info("No performance data available for analysis")
+
+            # Section 5: Saudi Context
+            with report_tab5:
+                st.markdown(f"""
+                <div style="background: linear-gradient(135deg, {TEAL_PRIMARY} 0%, {TEAL_DARK} 100%);
+                     padding: 1rem; border-radius: 8px; margin-bottom: 1rem; border-left: 4px solid {GOLD_ACCENT};">
+                    <h3 style="color: white; margin: 0;">Saudi Arabia Context</h3>
+                    <p style="color: rgba(255,255,255,0.9); margin: 0.5rem 0 0 0;">KSA athlete performance and gap analysis</p>
+                </div>
+                """, unsafe_allow_html=True)
+
+                # Get Saudi athletes in this event
+                saudi_event_df = filtered_event_df[filtered_event_df['nationality'] == 'KSA'].copy()
+
+                if len(saudi_event_df) > 0:
+                    saudi_event_df['perf_value'] = saudi_event_df['performance'].apply(parse_performance)
+                    saudi_clean = saudi_event_df.dropna(subset=['perf_value'])
+
+                    is_track = is_track_event(selected_report_event)
+
+                    st.markdown("#### Saudi Athletes in this Event")
+
+                    # Saudi athlete summary
+                    saudi_athletes = saudi_clean.groupby('athlete_name').agg({
+                        'performance': 'first',
+                        'perf_value': 'min' if is_track else 'max',
+                        'competition_name': 'count',
+                        'date': 'max'
+                    }).reset_index()
+                    saudi_athletes.columns = ['Athlete', 'Best Performance', 'Performance Value', 'Total Results', 'Last Competed']
+                    saudi_athletes = saudi_athletes.sort_values('Performance Value', ascending=is_track)
+
+                    st.dataframe(
+                        saudi_athletes[['Athlete', 'Best Performance', 'Total Results', 'Last Competed']],
+                        width='stretch',
+                        hide_index=True
+                    )
+
+                    # Gap to medal standards
+                    st.markdown("#### Gap to Championship Standards")
+
+                    if len(saudi_athletes) > 0:
+                        saudi_best = saudi_athletes.iloc[0]['Performance Value']
+                        saudi_best_athlete = saudi_athletes.iloc[0]['Athlete']
+
+                        # Get world best from filtered data
+                        all_clean = filtered_event_df.dropna(subset=['perf_value'])
+                        if len(all_clean) > 0:
+                            world_best = all_clean['perf_value'].min() if is_track else all_clean['perf_value'].max()
+
+                            # Calculate gaps
+                            if is_track:
+                                gap_to_gold = saudi_best - world_best
+                                gap_text = f"+{gap_to_gold:.2f}s behind" if gap_to_gold > 0 else f"{abs(gap_to_gold):.2f}s ahead"
+                            else:
+                                gap_to_gold = world_best - saudi_best
+                                gap_text = f"{gap_to_gold:.2f}m behind" if gap_to_gold > 0 else f"{abs(gap_to_gold):.2f}m ahead"
+
+                            col1, col2 = st.columns(2)
+
+                            with col1:
+                                st.markdown(f"""
+                                <div style="background: {GOLD_ACCENT}; padding: 1.5rem; border-radius: 8px; text-align: center;">
+                                    <p style="color: rgba(255,255,255,0.9); margin: 0; font-size: 0.9rem;">Saudi Best ({saudi_best_athlete})</p>
+                                    <p style="color: white; margin: 0.5rem 0; font-size: 2rem; font-weight: bold;">{saudi_best:.2f}</p>
+                                </div>
+                                """, unsafe_allow_html=True)
+
+                            with col2:
+                                gap_color = TEAL_PRIMARY if gap_to_gold <= 0 else '#dc3545'
+                                st.markdown(f"""
+                                <div style="background: {gap_color}; padding: 1.5rem; border-radius: 8px; text-align: center;">
+                                    <p style="color: rgba(255,255,255,0.9); margin: 0; font-size: 0.9rem;">Gap to Gold Standard</p>
+                                    <p style="color: white; margin: 0.5rem 0; font-size: 2rem; font-weight: bold;">{gap_text}</p>
+                                </div>
+                                """, unsafe_allow_html=True)
+
+                            # Saudi performance history
+                            st.markdown("#### Saudi Performance History")
+                            st.dataframe(
+                                saudi_clean[['athlete_name', 'competition_name', 'performance', 'date']].sort_values('date', ascending=False),
+                                width='stretch',
+                                hide_index=True
+                            )
+                else:
+                    st.info("No Saudi athletes found in this event/classification/gender combination")
+
+                    # Show what it would take
+                    st.markdown("#### Target Standards for Saudi Athletes")
+
+                    all_clean = filtered_event_df.dropna(subset=['perf_value'])
+                    if len(all_clean) > 0:
+                        is_track = is_track_event(selected_report_event)
+                        all_clean = all_clean.sort_values('perf_value', ascending=is_track)
+
+                        targets = []
+                        if len(all_clean) >= 1:
+                            targets.append({"Target": "Gold Medal", "Performance": all_clean.iloc[0]['performance']})
+                        if len(all_clean) >= 3:
+                            targets.append({"Target": "Bronze Medal", "Performance": all_clean.iloc[2]['performance']})
+                        if len(all_clean) >= 8:
+                            targets.append({"Target": "Finals (8th)", "Performance": all_clean.iloc[7]['performance']})
+
+                        if targets:
+                            st.dataframe(pd.DataFrame(targets), width='stretch', hide_index=True)
+        else:
+            st.info("Please select an event, classification, and gender to generate the report")
     else:
         st.info("No results data available yet. Run the GitHub workflow to populate.")
 
